@@ -2,11 +2,15 @@
 set -e
 
 echo -e "\n🔍 環境チェック..."
-command -v python3 &> /dev/null || { echo "❌ Python3 not found"; exit 1; }
-command -v cargo &> /dev/null || { echo "❌ Rust (cargo) not found"; exit 1; }
-command -v docker-compose &> /dev/null || { echo "❌ docker-compose not found"; exit 1; }
+command -v python3 &> /dev/null || { echo "❌ Python3 not found. Please install Python3."; exit 1; }
+command -v cargo &> /dev/null || { echo "❌ Rust (cargo) not found. Please install Rust."; exit 1; }
+command -v docker-compose &> /dev/null || { echo "❌ docker-compose not found. Please install Docker Desktop."; exit 1; }
 
 echo -e "\n📦 Python仮想環境の構築..."
+if [ ! -f config/requirements.txt ]; then
+  echo "❌ config/requirements.txt が見つかりません。"
+  exit 1
+fi
 python3 -m venv .venv
 source .venv/bin/activate
 pip install --upgrade pip
@@ -27,5 +31,6 @@ else
 fi
 
 echo -e "\n🧱 Rust依存のビルド..."
+cd "$(dirname "$0")/.."  # スクリプトが scripts/ 内にある場合に対応
 cargo build
 echo "✅ Rustビルド完了"

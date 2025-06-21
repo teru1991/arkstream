@@ -1,0 +1,89 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "ArkStream System Monitoring",
+    "timezone": "browser",
+    "panels": [
+      {
+        "type": "graph",
+        "title": "🗂️ ConfigLoader: Load Latency",
+        "targets": [
+          {
+            "expr": "configloader_latency_seconds",
+            "legendFormat": "Load Latency"
+          }
+        ],
+        "datasource": "Prometheus",
+        "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 }
+      },
+      {
+        "type": "stat",
+        "title": "🌐 Streamer: WebSocket Reconnects",
+        "targets": [
+          {
+            "expr": "streamer_ws_reconnect_total"
+          }
+        ],
+        "datasource": "Prometheus",
+        "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 }
+      },
+      {
+        "type": "stat",
+        "title": "📊 Executor: Trade Executions",
+        "targets": [
+          {
+            "expr": "executor_trades_executed_total"
+          }
+        ],
+        "datasource": "Prometheus",
+        "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 }
+      },
+      {
+        "type": "stat",
+        "title": "📉 Executor: Trade Failures",
+        "targets": [
+          {
+            "expr": "executor_trade_failures_total"
+          }
+        ],
+        "datasource": "Prometheus",
+        "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 }
+      },
+      {
+        "type": "graph",
+        "title": "⏱️ Executor: Trade Latency",
+        "targets": [
+          {
+            "expr": "executor_trade_latency_seconds"
+          }
+        ],
+        "datasource": "Prometheus",
+        "gridPos": { "x": 0, "y": 16, "w": 24, "h": 8 }
+      },
+      {
+        "type": "stat",
+        "title": "🕒 Scheduler: Total Jobs",
+        "targets": [
+          {
+            "expr": "scheduler_jobs_total"
+          }
+        ],
+        "datasource": "Prometheus",
+        "gridPos": { "x": 0, "y": 24, "w": 12, "h": 8 }
+      },
+      {
+        "type": "stat",
+        "title": "⚠️ Scheduler: Failures",
+        "targets": [
+          {
+            "expr": "scheduler_failures_total"
+          }
+        ],
+        "datasource": "Prometheus",
+        "gridPos": { "x": 12, "y": 24, "w": 12, "h": 8 }
+      }
+    ],
+    "schemaVersion": 30,
+    "version": 2
+  }
+}
