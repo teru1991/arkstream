@@ -42,6 +42,29 @@ services:
       POSTGRES_DB: market_data
     volumes:
       - pg_data:/var/lib/postgresql/data
+  arkstream-vault-dev:
+    image: hashicorp/vault:1.19.5
+    container_name: arkstream-vault-dev
+    ports:
+      - "8200:8200"
+    cap_add:
+      - IPC_LOCK
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: root
+      VAULT_DEV_LISTEN_ADDRESS: "0.0.0.0:8200"
+    command: vault server -dev
+
+  arkstream-vault:
+    container_name: arkstream-vault
+    image: hashicorp/vault:1.19.5
+    ports:
+      - "18201:18201"
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - ../vault/config:/vault/config
+      - ../vault/policies:/vault/policies
+    command: vault server -config=/vault/config/vault.hcl
 
 volumes:
   mongo_data:
