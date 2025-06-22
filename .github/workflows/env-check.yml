@@ -1,0 +1,21 @@
+name: Secret File Check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check-env:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: 🚨 Check for secret files
+        run: |
+          echo "Checking for secret files..."
+          if git ls-files | grep -E '\.env($|\.)|secrets\.yaml'; then
+            echo "❌ Secret files detected!"
+            exit 1
+          fi
+          echo "✅ No secret files found."
