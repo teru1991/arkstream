@@ -23,9 +23,10 @@ jobs:
         run: |
           required_keys=("POSTGRES_PASSWORD" "MONGO_URI" "KAFKA_BROKER")
           for key in "${required_keys[@]}"; do
-            if ! vault kv get -field="$key" secret/arkstream/testenv &> /dev/null; then
+            if ! vault kv get -mount=secret -field="$key" arkstream/testenv &> /dev/null; then
               echo "❌ $key not found in Vault"
               exit 1
             fi
           done
           echo "✅ All required secrets exist in Vault"
+      
