@@ -1,40 +1,29 @@
-# ベースイメージ
 FROM rust:1.77 AS builder
 
-# ビルド引数の受け取り
 ARG POSTGRES_USER
 ARG POSTGRES_PASSWORD
 ARG MONGO_URI
 ARG KAFKA_BROKER
 
-# 環境変数として設定（任意）
+# 以下のENVは本番では極力避けること（安全性に留意）
 ENV POSTGRES_USER=${POSTGRES_USER}
 ENV POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
 ENV MONGO_URI=${MONGO_URI}
 ENV KAFKA_BROKER=${KAFKA_BROKER}
 
-# 作業ディレクトリ作成
 WORKDIR /usr/src/app
 
-# Cargo.toml/Cargo.lock 先にコピーして依存解決（ビルドキャッシュ効率化）
 COPY Cargo.toml Cargo.lock ./
 RUN mkdir src && echo 'fn main() {}' > src/main.rs
 RUN cargo build --release && rm -rf src
 
-# アプリケーションコードをコピーして再ビルド
 COPY . .
 RUN cargo build --release
 
-# 実行用の軽量イメージにコピー
 FROM debian:bookworm-slim
 
-# ライブラリ追加（Rustバイナリに必要）
 RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
 
-# アプリケーションバイナリコピー
 COPY --from=builder /usr/src/app/target/release/arkstream /usr/local/bin/arkstream
 
-# デフォルトコマンド
 CMD ["arkstream"]
-
-RUN echo "Using POSTGRES_USER=$POSTGRES_USER"
