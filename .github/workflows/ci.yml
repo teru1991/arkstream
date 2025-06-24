@@ -23,25 +23,23 @@ jobs:
           sudo mv vault-bin/vault /usr/local/bin/
           vault --version
 
-      # 2️⃣ Vault から POSTGRES / MONGO / KAFKA 読み込み
+      # 2️⃣ Vaultから資格情報を取得し、環境変数として注入
       - name: 🔐 Load Secrets from Vault
+        id: vault-secrets
         env:
           VAULT_ADDR: ${{ secrets.ARKSTREAM_VAULT_ADDR }}
           VAULT_TOKEN: ${{ secrets.ARKSTREAM_VAULT_TOKEN }}
         run: |
-          echo "🔐 Reading secrets from Vault..."
-          export POSTGRES_USER=$(vault kv get -field=POSTGRES_USER secret/arkstream/testenv)
-          export MONGO_URI=$(vault kv get -field=MONGO_URI secret/arkstream/testenv)
-          export KAFKA_BROKER=$(vault kv get -field=KAFKA_BROKER secret/arkstream/testenv)
-          echo "POSTGRES_USER=$POSTGRES_USER" >> $GITHUB_ENV
-          echo "MONGO_URI=$MONGO_URI" >> $GITHUB_ENV
-          echo "KAFKA_BROKER=$KAFKA_BROKER" >> $GITHUB_ENV
+          echo "🔐 Fetching secrets from Vault..."
+          echo "VAULT_ADDR=${VAULT_ADDR}" >> $GITHUB_ENV
+          echo "VAULT_TOKEN=${VAULT_TOKEN}" >> $GITHUB_ENV
+          vault kv get -format=json secret/arkstream/testenv \
+            | jq -r '.data.data | to_entries | map("echo \(.key)=\(.value) >> $GITHUB_ENV") | .[]' \
+            | bash
 
-      # 3️⃣ Rust テストの実行（Vault値を環境変数として利用）
-      - name: 🧪 Run cargo test with secrets
-        run: |
-          echo "🔧 Running tests with Vault secrets"
-          echo "POSTGRES_USER=$POSTGRES_USER"
-          echo "MONGO_URI=$MONGO_URI"
-          echo "KAFKA_BROKER=$KAFKA_BROKER"
-          cargo test --all -- --test-threads=1
+      # 3️⃣ cargo test 実行時に Vault情報を使用
+      - name: 🧪 Run Rust Tests
+        run: cargo test -- --test-threads=1
+        env:
+          VAULT_ADDR: ${{ env.VAULT_ADDR }}
+          VAULT_TOKEN: ${{ env.VAULT_TOKEN }}
