@@ -10,6 +10,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # ✅ Vault CLI をインストール（追加）
+      - name: Install Vault CLI
+        uses: hashicorp/setup-vault@v1
+
       - name: Read Secrets from Vault
         run: |
           export VAULT_ADDR=${{ secrets.ARKSTREAM_VAULT_ADDR }}
@@ -19,4 +23,5 @@ jobs:
           vault kv get -format=json secret/arkstream/testenv \
             | jq -r '.data.data' > output.json
 
+          echo "✅ Fetched secrets from Vault:"
           cat output.json
