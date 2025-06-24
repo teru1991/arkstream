@@ -28,16 +28,16 @@ jobs:
 
       - name: 🔐 Load DB secrets from Vault
         env:
-          VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
-          VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
+          VAULT_ADDR: ${{ secrets.ARKSTREAM_VAULT_ADDR }}
+          VAULT_TOKEN: ${{ secrets.ARKSTREAM_VAULT_TOKEN }}
         run: |
           eval $(vault kv get -format=json secret/arkstream/db \
             | jq -r '.data.data | to_entries | map("\(.key)=\(.value)") | .[]')
 
       - name: 🔐 Load Kafka secrets from Vault
         env:
-          VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
-          VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
+          VAULT_ADDR: ${{ secrets.ARKSTREAM_VAULT_ADDR }}
+          VAULT_TOKEN: ${{ secrets.ARKSTREAM_VAULT_TOKEN }}
         run: |
           eval $(vault kv get -format=json secret/arkstream/kafka \
             | jq -r '.data.data | to_entries | map("\(.key)=\(.value)") | .[]')

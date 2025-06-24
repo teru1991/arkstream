@@ -24,8 +24,8 @@ jobs:
 
       - name: 🔐 Load GPG signing key from Vault
         env:
-          VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
-          VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
+          VAULT_ADDR: ${{ secrets.ARKSTREAM_VAULT_ADDR }}
+          VAULT_TOKEN: ${{ secrets.ARKSTREAM_VAULT_TOKEN }}
         run: |
           echo "🔐 Retrieving GPG key from Vault..."
           SIGNING_KEY=$(vault kv get -field=SIGNING_KEY secret/arkstream/release)

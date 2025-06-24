@@ -32,8 +32,8 @@ jobs:
 
       - name: 🔐 Load Vault secrets for build
         env:
-          VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
-          VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
+          VAULT_ADDR: ${{ secrets.ARKSTREAM_VAULT_ADDR }}
+          VAULT_TOKEN: ${{ secrets.ARKSTREAM_VAULT_TOKEN }}
         run: |
           echo "🔐 Reading secrets from Vault..."
           export POSTGRES_PASSWORD=$(vault kv get -field=POSTGRES_PASSWORD secret/arkstream/testenv)

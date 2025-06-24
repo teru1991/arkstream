@@ -9,8 +9,8 @@ jobs:
     steps:
       - name: Check Vault secrets
         env:
-          VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
-          VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
+          VAULT_ADDR: ${{ secrets.ARKSTREAM_VAULT_ADDR }}
+          VAULT_TOKEN: ${{ secrets.ARKSTREAM_VAULT_TOKEN }}
         run: |
           echo "🔍 Checking required secrets in Vault..."
 
