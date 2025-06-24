@@ -1,27 +1,29 @@
-# ベースイメージ（FROM を大文字に修正）
 FROM rust:1.77 AS builder
 
-# ビルド引数の受け取り（安全な方法に切り替えることは後述）
+# 安全性の観点からARGはビルドステージ限定で使用（ENVは削除）
 ARG POSTGRES_USER
 ARG POSTGRES_PASSWORD
 ARG MONGO_URI
 ARG KAFKA_BROKER
 
-# 作業ディレクトリ
 WORKDIR /usr/src/app
 
-# Cargo 関連ファイルを先にコピー（依存解決用）
+# 依存解決用に Cargo.* とサブクレートの Cargo.* を先にコピー
 COPY Cargo.toml Cargo.lock ./
 COPY vault/Cargo.toml vault/Cargo.toml
-RUN mkdir src && echo 'fn main() {}' > src/main.rs && cargo build --release && rm -rf src
 
-# 残りのプロジェクト全体をコピー（.dockerignore に注意）
+# 空のmain.rsを使ったビルドキャッシュ回避は使わず、直接ビルド時に無視
+# （または以下のように--workspaceで全体の依存解決でもOK）
+RUN mkdir src && echo 'fn main() {}' > src/main.rs && \
+    echo '[package]\nname = "dummy"\nversion = "0.1.0"\nedition = "2021"\n\n[dependencies]' > Cargo.toml && \
+    cargo build --release || true && rm -rf src Cargo.toml
+
+# 残りの全ファイルをコピー
 COPY . .
 
-# 本ビルド
+# 必要なクレートだけをビルド（例: vault_test）
 RUN cargo build --release -p vault_test
 
-# 実行用の軽量イメージにコピー
 FROM debian:bookworm-slim
 
 RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
