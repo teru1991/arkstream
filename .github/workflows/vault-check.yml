@@ -1,0 +1,30 @@
+name: Vault Secret Check
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Install Vault CLI
+        run: |
+          curl -fsSL https://releases.hashicorp.com/vault/1.15.2/vault_1.15.2_linux_amd64.zip -o vault.zip
+          unzip -o vault.zip
+          sudo mv vault /usr/local/bin/
+          vault --version
+
+      - name: 🔎 Check required Vault secrets
+        env:
+          VAULT_ADDR: ${{ secrets.ARKSTREAM_VAULT_ADDR }}
+          VAULT_TOKEN: ${{ secrets.ARKSTREAM_VAULT_TOKEN }}
+        run: |
+          required_keys=("POSTGRES_PASSWORD" "MONGO_URI" "KAFKA_BROKER")
+          for key in "${required_keys[@]}"; do
+            if ! vault kv get -field="$key" secret/arkstream/testenv &> /dev/null; then
+              echo "❌ $key not found in Vault"
+              exit 1
+            fi
+          done
+          echo "✅ All required secrets exist in Vault"

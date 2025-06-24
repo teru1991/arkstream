@@ -1,0 +1,31 @@
+name: Docker Compose with Vault
+
+on:
+  workflow_dispatch:
+
+jobs:
+  compose-up:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 📥 Install Vault CLI
+        run: |
+          curl -fsSL https://releases.hashicorp.com/vault/1.15.2/vault_1.15.2_linux_amd64.zip -o vault.zip
+          unzip -o vault.zip
+          sudo mv vault /usr/local/bin/
+          vault --version
+
+      - name: 🔐 Get secrets from Vault for Compose
+        env:
+          VAULT_ADDR: ${{ secrets.ARKSTREAM_VAULT_ADDR }}
+          VAULT_TOKEN: ${{ secrets.ARKSTREAM_VAULT_TOKEN }}
+        run: |
+          echo "POSTGRES_PASSWORD=$(vault kv get -field=POSTGRES_PASSWORD secret/arkstream/testenv)" >> .env.compose
+          echo "MONGO_URI=$(vault kv get -field=MONGO_URI secret/arkstream/testenv)" >> .env.compose
+          echo "KAFKA_BROKER=$(vault kv get -field=KAFKA_BROKER secret/arkstream/testenv)" >> .env.compose
+          cat .env.compose
+
+      - name: 🐳 Docker Compose Up
+        run: docker-compose --env-file .env.compose up -d
