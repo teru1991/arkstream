@@ -36,3 +36,5 @@ COPY --from=builder /usr/src/app/target/release/arkstream /usr/local/bin/arkstre
 
 # デフォルトコマンド
 CMD ["arkstream"]
+
+RUN echo "Using POSTGRES_USER=$POSTGRES_USER"

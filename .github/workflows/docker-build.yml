@@ -1,46 +1,38 @@
-name: Docker Build & Push
+name: Docker Build with Vault
 
 on:
-  push:
-    tags:
-      - "v*.*.*"  # バージョンタグでトリガー
+  workflow_dispatch:
 
 jobs:
-  build-and-push:
+  build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - name: 📥 Install Vault CLI
+        run: |
+          curl -fsSL https://releases.hashicorp.com/vault/1.15.2/vault_1.15.2_linux_amd64.zip -o vault.zip
+          mkdir -p vault-bin
+          unzip -o vault.zip -d vault-bin
+          sudo mv vault-bin/vault /usr/local/bin/
+          vault --version
 
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract version tag
-        id: extract_tag
-        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
-
-      - name: 🔐 Load Vault secrets for build
+      - name: 🔐 Fetch Docker Build Secrets from Vault
+        id: vault-secrets
         env:
           VAULT_ADDR: ${{ secrets.ARKSTREAM_VAULT_ADDR }}
           VAULT_TOKEN: ${{ secrets.ARKSTREAM_VAULT_TOKEN }}
         run: |
-          echo "🔐 Reading secrets from Vault..."
-          export POSTGRES_PASSWORD=$(vault kv get -field=POSTGRES_PASSWORD secret/arkstream/testenv)
-          echo "POSTGRES_PASSWORD=$POSTGRES_PASSWORD" >> $GITHUB_ENV
-      - name: Build and push Docker image
+          vault kv get -format=json secret/arkstream/dockerenv \
+            | jq -r '.data.data | to_entries | map("echo \(.key)=\(.value) >> $GITHUB_ENV") | .[]' \
+            | bash
+
+      - name: 🛠️ Docker Build
         run: |
-          IMAGE_NAME=ghcr.io/${{ github.repository }}
-          docker build -t $IMAGE_NAME:latest -t $IMAGE_NAME:$VERSION .
-          docker push $IMAGE_NAME:$VERSION
-          docker push $IMAGE_NAME:latest
+          docker build \
+            --build-arg POSTGRES_USER=$POSTGRES_USER \
+            --build-arg POSTGRES_PASSWORD=$POSTGRES_PASSWORD \
+            --build-arg MONGO_URI=$MONGO_URI \
+            --build-arg KAFKA_BROKER=$KAFKA_BROKER \
+            -t arkstream:test .
