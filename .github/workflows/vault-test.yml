@@ -8,35 +8,29 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 🧾 Checkout Repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: 📥 Install Vault CLI manually (safe extraction)
+      - name: 📥 Install Vault CLI
         run: |
-          echo "📥 Installing Vault CLI..."
           curl -fsSL https://releases.hashicorp.com/vault/1.15.2/vault_1.15.2_linux_amd64.zip -o vault.zip
-          
-          # 明示的に別ディレクトリに展開
           mkdir -p vault-bin
           unzip -o vault.zip -d vault-bin
-
-          # 古い vault を安全に削除
-          if [ -e /usr/local/bin/vault ]; then
-            echo "⚠️ Removing existing /usr/local/bin/vault"
-            sudo rm -rf /usr/local/bin/vault
-          fi
-
           sudo mv vault-bin/vault /usr/local/bin/
           vault --version
 
+      - name: 🚀 Start Vault Dev Server
+        run: |
+          nohup vault server -dev -dev-root-token-id="root-token" > vault.log 2>&1 &
+          sleep 3
+        env:
+          VAULT_ADDR: http://127.0.0.1:8200
+
       - name: 🔐 Read Secrets from Vault
         env:
-          VAULT_ADDR: ${{ secrets.ARKSTREAM_VAULT_ADDR }}
-          VAULT_TOKEN: ${{ secrets.ARKSTREAM_VAULT_TOKEN }}
+          VAULT_ADDR: http://127.0.0.1:8200
+          VAULT_TOKEN: root-token
         run: |
-          echo "🚀 Connecting to Vault at $VAULT_ADDR"
+          vault kv put secret/arkstream/testenv DUMMY_API_KEY=testkey
           vault kv get -format=json secret/arkstream/testenv \
             | jq -r '.data.data' > output.json
-
-          echo "✅ Fetched secrets from Vault:"
           cat output.json
