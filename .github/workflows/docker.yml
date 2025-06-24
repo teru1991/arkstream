@@ -17,12 +17,18 @@ jobs:
       - name: 📥 Install Vault CLI as vault-cli in $HOME/bin
         run: |
           mkdir -p $HOME/bin
-          curl -fsSL https://releases.hashicorp.com/vault/1.15.2/vault_1.15.2_linux_amd64.zip -o vault.zip
-          unzip -o vault.zip
-          chmod +x vault
-          mv vault $HOME/bin/vault-cli
-          echo "$HOME/bin" >> $GITHUB_PATH  # GitHub Actions の PATH に追加
+
+          # 一時ディレクトリで展開
+          mkdir -p /tmp/vault-install
+          curl -fsSL https://releases.hashicorp.com/vault/1.15.2/vault_1.15.2_linux_amd64.zip -o /tmp/vault-install/vault.zip
+          unzip -o /tmp/vault-install/vault.zip -d /tmp/vault-install
+
+          chmod +x /tmp/vault-install/vault
+          mv /tmp/vault-install/vault $HOME/bin/vault-cli
+
+          echo "$HOME/bin" >> $GITHUB_PATH
           vault-cli --version
+      
 
       # 2️⃣ Vaultから資格情報取得
       - name: 🔐 Load Secrets from Vault
