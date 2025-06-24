@@ -58,7 +58,7 @@ services:
     container_name: arkstream-vault
     image: hashicorp/vault:1.19.5
     ports:
-      - "18201:18201"
+      - "18201:8200"
     cap_add:
       - IPC_LOCK
     volumes:

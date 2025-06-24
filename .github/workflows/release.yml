@@ -1,14 +1,43 @@
-name: Release on Tag
+name: Release Build
 
 on:
   push:
     tags:
-      - 'v*.*.*'
+      - "v*"
 
 jobs:
   release:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - run: echo "📦 New release triggered on tag $GITHUB_REF"
 
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: actions/setup-rust@v1
+
+      - name: Build binary
+        run: |
+          cargo build --release
+          mkdir -p release_assets
+          cp target/release/arkstream release_assets/
+
+      - name: 🔐 Load GPG signing key from Vault
+        env:
+          VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
+          VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
+        run: |
+          echo "🔐 Retrieving GPG key from Vault..."
+          SIGNING_KEY=$(vault kv get -field=SIGNING_KEY secret/arkstream/release)
+          echo "$SIGNING_KEY" > signingkey.asc
+          gpg --batch --import signingkey.asc
+
+      - name: 🔏 Sign binary
+        run: |
+          gpg --batch --yes --armor --detach-sign \
+            -o release_assets/arkstream.asc release_assets/arkstream
+      - name: Upload Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            release_assets/arkstream

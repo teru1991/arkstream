@@ -1,21 +1,28 @@
-name: Secret File Check
+name: 🔍 Vault Secrets Check
 
 on:
-  push:
-    branches: [main]
-  pull_request:
+  workflow_dispatch:
 
 jobs:
-  check-env:
+  vault-check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-
-      - name: 🚨 Check for secret files
+      - name: Check Vault secrets
+        env:
+          VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
+          VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
         run: |
-          echo "Checking for secret files..."
-          if git ls-files | grep -E '\.env($|\.)|secrets\.yaml'; then
-            echo "❌ Secret files detected!"
-            exit 1
-          fi
-          echo "✅ No secret files found."
+          echo "🔍 Checking required secrets in Vault..."
+
+          REQUIRED_KEYS=("POSTGRES_USER" "POSTGRES_PASSWORD" "MONGO_URI" "KAFKA_BROKER")
+          for KEY in "${REQUIRED_KEYS[@]}"; do
+            VALUE=$(vault kv get -field=$KEY secret/arkstream/testenv 2>/dev/null || true)
+            if [ -z "$VALUE" ]; then
+              echo "❌ Missing key: $KEY in Vault path: secret/arkstream/testenv"
+              exit 1
+            else
+              echo "✅ Found: $KEY"
+            fi
+          done
+
+          echo "✅ All required Vault keys are present."

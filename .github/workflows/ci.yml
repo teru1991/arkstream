@@ -1,0 +1,48 @@
+name: 🧪 CI with Vault Integration
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+
+      - name: Install dependencies
+        run: |
+          pip install pre-commit
+          pre-commit install
+
+      - name: Run pre-commit checks
+        run: pre-commit run --all-files
+
+      - name: 🔐 Load DB secrets from Vault
+        env:
+          VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
+          VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
+        run: |
+          eval $(vault kv get -format=json secret/arkstream/db \
+            | jq -r '.data.data | to_entries | map("\(.key)=\(.value)") | .[]')
+
+      - name: 🔐 Load Kafka secrets from Vault
+        env:
+          VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
+          VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
+        run: |
+          eval $(vault kv get -format=json secret/arkstream/kafka \
+            | jq -r '.data.data | to_entries | map("\(.key)=\(.value)") | .[]')
+
+      - name: 🧪 Run Rust tests (with secrets)
+        run: |
+          echo "Running tests with Vault credentials..."
+          cargo test -- --test-threads=1

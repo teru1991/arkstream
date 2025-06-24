@@ -1,11 +1,10 @@
 # ========================================
-# 📦 ArkStream - Makefile
+# 📦 ArkStream - Makefile (Vault統合対応版)
 # ========================================
 
 .PHONY: hello
 hello:
 	@echo "✅ Hello, Makefile is working!"
-
 
 # ========================================
 # 📁 パス定義
@@ -85,12 +84,16 @@ clean:
 .PHONY: lint
 lint:
 	@echo "🔍 Lint / Format チェック"
-	@echo "📦 Python: ruff"
 	ruff src/ || true
-	@echo "🦀 Rust: clippy"
 	cargo clippy || true
-	@echo "📘 TypeScript: eslint"
 	npx eslint frontend/ --ext .ts,.tsx || true
+
+.PHONY: format
+format:
+	@echo "🎨 Format all source code"
+	black src/ || true
+	cargo fmt || true
+	npx eslint frontend/ --ext .ts,.tsx --fix || true
 
 .PHONY: format-readme
 format-readme:
@@ -117,7 +120,7 @@ venv:
 	. .venv/bin/activate && pip install -r config/requirements.txt
 
 # ========================================
-# 🔐 Vault 操作（MODE=dev 対応）
+# 🔐 Vault 操作（分割パス & Policy対応）
 # ========================================
 
 VAULT_CONTAINER := $(if $(filter $(MODE),dev),arkstream-vault-dev,arkstream-vault)
@@ -142,11 +145,18 @@ vault-test:
 	@echo "🧪 Vault API を Python でテストします"
 	python3 vault/tests/vault_test.py
 
-.PHONY: vault-test-binance
-vault-test-binance:
-	@echo "🧪 BinanceテストデータをVaultに投入します"
-	bash vault/scripts/vault_test_binance.sh
+.PHONY: vault-migrate
+vault-migrate:
+	@echo "📥 Vault に分割済みのシークレットを投入します"
+	bash vault/scripts/vault_migrate.sh
 
+
+.PHONY: vault-policy-write
+vault-policy-write:
+	@echo "🛡️ Vault Policy を登録します"
+	vault policy write arkstream-db vault/policies/arkstream-db.hcl
+	vault policy write arkstream-kafka vault/policies/arkstream-kafka.hcl
+	vault policy write arkstream-release vault/policies/arkstream-release.hcl
 
 # ========================================
 # ♻️ Docker Cleanup
@@ -158,20 +168,8 @@ prune:
 	docker system prune -af --volumes
 
 # ========================================
-# 📦 ArkStream - Makefile
+# ✅ pre-commit セットアップ & チェック
 # ========================================
-
-.PHONY: help
-
-help:
-	@echo ""
-	@echo "📘 ArkStream Makefile ヘルプ"
-	@echo "---------------------------------------------"
-	@grep -E '^\.PHONY: [a-zA-Z0-9_-]+.*$$' Makefile | sed 's/\.PHONY: //' | tr ' ' '\n' | while read target; do \
-		desc=$$(grep -A 1 "^\.PHONY: $$target" Makefile | tail -n1 | sed -E 's/^\s*@?echo\s+"(.*)"/\1/' | sed 's/@echo "//;s/"//'); \
-		printf "🛠  make %-16s - %s\n" "$$target" "$$desc"; \
-	done
-	@echo ""
 
 .PHONY: pre-commit-run
 pre-commit-run:
@@ -183,34 +181,10 @@ pre-commit-install:
 	@echo "📦 pre-commit をインストールします"
 	pre-commit install
 
-.PHONY: format
-format:
-	@echo "🎨 Format all source code"
-	@echo "🐍 Python: black"
-	black src/ || true
-	@echo "🦀 Rust: rustfmt"
-	cargo fmt || true
-	@echo "📘 TypeScript: eslint --fix"
-	npx eslint frontend/ --ext .ts,.tsx --fix || true
-
-.PHONY: check
-check:
-	@echo "🔍 Running pre-commit checks"
-	pre-commit run --all-files
-
-# ========================================
-# ✅ pre-commit セットアップ & チェック
-# ========================================
-
 .PHONY: init-pre-commit
 init-pre-commit:
 	@echo "🛠️ pre-commit を初期化します"
 	bash scripts/init_pre_commit.sh
-
-.PHONY: check
-check:
-	@echo "🔍 pre-commit 全チェックを実行します"
-	pre-commit run --all-files
 
 .PHONY: update-pre-commit-rev
 update-pre-commit-rev:
@@ -220,13 +194,8 @@ update-pre-commit-rev:
 update-pre-commit-revs:
 	@bash scripts/update_all_pre_commit_revs.sh
 
-.PHONY: init-lint-config
-init-lint-config:
-	@echo "🧼 Linter/Formatter 設定ファイルを初期化します"
-	bash scripts/init_lint_config.sh
-
 # ========================================
-# 📁 フロントエンド初期化
+# 🌐 フロントエンド操作
 # ========================================
 
 .PHONY: frontend-init
@@ -235,7 +204,6 @@ frontend-init:
 	rm -rf frontend
 	npx create-react-app frontend --template typescript
 	cd frontend && npm install --save-dev eslint @typescript-eslint/eslint-plugin @typescript-eslint/parser eslint-plugin-react
-	@echo "✅ frontend 初期化が完了しました"
 
 .PHONY: frontend-lint
 frontend-lint:
@@ -257,7 +225,16 @@ frontend-install:
 	@echo "📦 frontend の依存パッケージをインストールします"
 	cd frontend && npm install
 
-.PHONY: init-lint-config
-init-lint-config:
-	@echo "🧼 Linter/Formatter 設定ファイルを初期化します"
-	bash scripts/init_lint_config.sh
+# ========================================
+# 📘 Makefile Help
+# ========================================
+
+.PHONY: help
+help:
+	@echo "\n📘 ArkStream Makefile ヘルプ"
+	@echo "---------------------------------------------"
+	@grep -E '^\.PHONY: [a-zA-Z0-9_-]+.*$$' Makefile | sed 's/\.PHONY: //' | tr ' ' '\n' | while read target; do \
+		desc=$$(grep -A 1 "^\.PHONY: $$target" Makefile | tail -n1 | sed -E 's/^\s*@?echo\s+\"(.*)\"/\1/' | sed 's/@echo \"//;s/\"//'); \
+		printf "🛠  make %-20s - %s\n" "$$target" "$$desc"; \
+	done
+	@echo ""
