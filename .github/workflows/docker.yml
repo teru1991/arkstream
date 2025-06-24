@@ -15,15 +15,12 @@ jobs:
 
       - name: 📥 Install Vault CLI
         run: |
-          curl -fsSL https://releases.hashicorp.com/vault/1.15.2/vault_1.15.2_linux_amd64.zip -o vault.zip
-          unzip -o vault.zip
-          if [ -d /usr/local/bin/vault ]; then
-            sudo rm -rf /usr/local/bin/vault || true
-          elif [ -f /usr/local/bin/vault ]; then
-            sudo rm /usr/local/bin/vault || true
-          fi
-          sudo mv vault /usr/local/bin/vault
-          vault --version
+            curl -fsSL https://releases.hashicorp.com/vault/1.15.2/vault_1.15.2_linux_amd64.zip -o vault.zip
+            unzip -o vault.zip
+            sudo rm -rf /usr/local/bin/vault
+            sudo mv vault /usr/local/bin/
+            vault --version
+
       
 
       - name: 🔐 Load Secrets from Vault
