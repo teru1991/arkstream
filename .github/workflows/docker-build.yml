@@ -1,4 +1,4 @@
-name: Docker Build with Vault
+name: Docker Build with Vault (Dev Mode)
 
 on:
   workflow_dispatch:
@@ -18,11 +18,28 @@ jobs:
           sudo mv vault-bin/vault /usr/local/bin/
           vault --version
 
-      - name: 🔐 Fetch Docker Build Secrets from Vault
-        id: vault-secrets
+      - name: 🚀 Start Vault Dev Server
+        run: |
+          nohup vault server -dev -dev-root-token-id="root-token" > vault.log 2>&1 &
+          sleep 5
         env:
-          VAULT_ADDR: ${{ secrets.ARKSTREAM_VAULT_ADDR }}
-          VAULT_TOKEN: ${{ secrets.ARKSTREAM_VAULT_TOKEN }}
+          VAULT_ADDR: http://127.0.0.1:8200
+
+      - name: 🔐 Seed Vault Secrets
+        env:
+          VAULT_ADDR: http://127.0.0.1:8200
+          VAULT_TOKEN: root-token
+        run: |
+          vault kv put secret/arkstream/dockerenv \
+            POSTGRES_USER=testuser \
+            POSTGRES_PASSWORD=testpass \
+            MONGO_URI=mongodb://localhost:27017 \
+            KAFKA_BROKER=localhost:9092
+
+      - name: 📤 Load Secrets into Environment
+        env:
+          VAULT_ADDR: http://127.0.0.1:8200
+          VAULT_TOKEN: root-token
         run: |
           vault kv get -format=json secret/arkstream/dockerenv \
             | jq -r '.data.data | to_entries | map("echo \(.key)=\(.value) >> $GITHUB_ENV") | .[]' \
