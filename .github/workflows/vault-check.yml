@@ -4,9 +4,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  check:
+  check-vault:
     runs-on: ubuntu-latest
-
     steps:
       - name: 📥 Install Vault CLI
         run: |
@@ -15,10 +14,10 @@ jobs:
           sudo mv vault /usr/local/bin/
           vault --version
 
-      - name: 🔎 Check required Vault secrets
+      - name: ✅ Check required secrets in Vault
         env:
-          VAULT_ADDR: ${{ secrets.ARKSTREAM_VAULT_ADDR }}
-          VAULT_TOKEN: ${{ secrets.ARKSTREAM_VAULT_TOKEN }}
+          VAULT_ADDR: http://127.0.0.1:8200
+          VAULT_TOKEN: ${{ secrets.VAULT_GITHUB_CI_TOKEN }}
         run: |
           required_keys=("POSTGRES_PASSWORD" "MONGO_URI" "KAFKA_BROKER")
           for key in "${required_keys[@]}"; do
