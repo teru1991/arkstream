@@ -4,21 +4,41 @@ on:
   workflow_dispatch:
 
 jobs:
-  check-vault:
+  check-vault-secrets:
+    name: 🛡️ Check Vault Secrets (Dev Server)
     runs-on: ubuntu-latest
+
     steps:
-      - name: 📥 Install Vault CLI
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🔧 Install Vault CLI
         run: |
           curl -fsSL https://releases.hashicorp.com/vault/1.15.2/vault_1.15.2_linux_amd64.zip -o vault.zip
           unzip -o vault.zip
-          sudo mv vault /usr/local/bin/
+          sudo mv vault /usr/local/bin/vault
           vault --version
 
-      - name: ✅ Check required secrets in Vault
-        env:
-          VAULT_ADDR: http://127.0.0.1:8200
-          VAULT_TOKEN: ${{ secrets.VAULT_GITHUB_CI_TOKEN }}
+      - name: 🚀 Start Vault Dev Server (background)
         run: |
+          nohup vault server -dev -dev-root-token-id="root-token" > vault.log 2>&1 &
+          sleep 5
+        env:
+          VAULT_DEV_ROOT_TOKEN_ID: root-token
+
+      - name: 🔑 Put test secrets into Vault
+        run: |
+          export VAULT_ADDR=http://127.0.0.1:8200
+          export VAULT_TOKEN=root-token
+          vault kv put secret/arkstream/testenv \
+            POSTGRES_PASSWORD=your_postgres_password \
+            MONGO_URI=your_mongo_uri \
+            KAFKA_BROKER=your_kafka_broker
+
+      - name: ✅ Check required secrets
+        run: |
+          export VAULT_ADDR=http://127.0.0.1:8200
+          export VAULT_TOKEN=root-token
           required_keys=("POSTGRES_PASSWORD" "MONGO_URI" "KAFKA_BROKER")
           for key in "${required_keys[@]}"; do
             if ! vault kv get -mount=secret -field="$key" arkstream/testenv &> /dev/null; then
