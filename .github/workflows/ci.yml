@@ -23,23 +23,27 @@ jobs:
           sudo mv vault-bin/vault /usr/local/bin/
           vault --version
 
-      # 2️⃣ Vaultから資格情報を取得し、環境変数として注入
-      - name: 🔐 Load Secrets from Vault
-        id: vault-secrets
-        env:
-          VAULT_ADDR: ${{ secrets.ARKSTREAM_VAULT_ADDR }}
-          VAULT_TOKEN: ${{ secrets.ARKSTREAM_VAULT_TOKEN }}
+      # 2️⃣ Vault Dev サーバー起動（ローカル）
+      - name: 🚀 Start Vault Dev Server
         run: |
-          echo "🔐 Fetching secrets from Vault..."
-          echo "VAULT_ADDR=${VAULT_ADDR}" >> $GITHUB_ENV
-          echo "VAULT_TOKEN=${VAULT_TOKEN}" >> $GITHUB_ENV
-          vault kv get -format=json secret/arkstream/testenv \
-            | jq -r '.data.data | to_entries | map("echo \(.key)=\(.value) >> $GITHUB_ENV") | .[]' \
-            | bash
-
-      # 3️⃣ cargo test 実行時に Vault情報を使用
-      - name: 🧪 Run Rust Tests
-        run: cargo test -- --test-threads=1
+          nohup vault server -dev -dev-root-token-id="root-token" > vault.log 2>&1 &
+          sleep 5
         env:
-          VAULT_ADDR: ${{ env.VAULT_ADDR }}
-          VAULT_TOKEN: ${{ env.VAULT_TOKEN }}
+          VAULT_ADDR: http://127.0.0.1:18201
+
+      # 3️⃣ テスト用の秘密値を書き込む（Rustテストで取得）
+      - name: 🔐 Seed secrets for test
+        env:
+          VAULT_ADDR: http://127.0.0.1:18201
+          VAULT_TOKEN: root-token
+        run: |
+          vault kv put secret/arkstream/binance_test \
+            BINANCE_API_KEY="dummy_key" \
+            BINANCE_SECRET_KEY="dummy_secret"
+
+      # 4️⃣ Rustテスト実行（Vaultに接続して秘密値を取得）
+      - name: 🧪 Run Rust Tests
+        env:
+          VAULT_ADDR: http://127.0.0.1:18201
+          VAULT_TOKEN: root-token
+        run: cargo test -- --test-threads=1
