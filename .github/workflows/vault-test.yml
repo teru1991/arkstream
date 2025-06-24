@@ -10,9 +10,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ✅ Vault CLI をインストール（追加）
-      - name: Install Vault CLI
-        uses: hashicorp/setup-vault@v1
+      # ✅ Vault CLI を curl + unzip で手動インストール
+      - name: Install Vault CLI manually
+        run: |
+          echo "📥 Installing Vault CLI..."
+          curl -fsSL https://releases.hashicorp.com/vault/1.15.2/vault_1.15.2_linux_amd64.zip -o vault.zip
+          unzip vault.zip
+          sudo mv vault /usr/local/bin/
+          vault --version
 
       - name: Read Secrets from Vault
         run: |
