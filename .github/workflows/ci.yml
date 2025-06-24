@@ -14,7 +14,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # 1️⃣ Vault CLI インストール
       - name: 📥 Install Vault CLI
         run: |
           curl -fsSL https://releases.hashicorp.com/vault/1.15.2/vault_1.15.2_linux_amd64.zip -o vault.zip
@@ -23,7 +22,6 @@ jobs:
           sudo mv vault-bin/vault /usr/local/bin/
           vault --version
 
-      # 2️⃣ Vault Dev サーバー起動（ローカル）
       - name: 🚀 Start Vault Dev Server
         run: |
           nohup vault server -dev -dev-root-token-id="root-token" > vault.log 2>&1 &
@@ -31,8 +29,6 @@ jobs:
         env:
           VAULT_ADDR: http://127.0.0.1:8200
 
-
-      # 3️⃣ テスト用の秘密値を書き込む（Rustテストで取得）
       - name: 🔐 Seed secrets for test
         env:
           VAULT_ADDR: http://127.0.0.1:8200
@@ -42,7 +38,6 @@ jobs:
             BINANCE_API_KEY="dummy_key" \
             BINANCE_SECRET_KEY="dummy_secret"
 
-      # 4️⃣ Rustテスト実行（Vaultに接続して秘密値を取得）
       - name: 🧪 Run Rust Tests
         env:
           VAULT_ADDR: http://127.0.0.1:8200
