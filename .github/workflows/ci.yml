@@ -1,24 +1,20 @@
-name: Docker Build & Push
+name: CI with Vault
 
 on:
   push:
-    tags:
-      - "v*.*.*"  # バージョンタグでトリガー
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
 
 jobs:
-  build-and-push:
+  test:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
+      # 1️⃣ Vault CLI インストール
       - name: 📥 Install Vault CLI
         run: |
           curl -fsSL https://releases.hashicorp.com/vault/1.15.2/vault_1.15.2_linux_amd64.zip -o vault.zip
@@ -27,37 +23,25 @@ jobs:
           sudo mv vault-bin/vault /usr/local/bin/
           vault --version
 
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract version tag
-        id: extract_tag
-        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
-
-      - name: 🔐 Load Vault secrets for build
+      # 2️⃣ Vault から POSTGRES / MONGO / KAFKA 読み込み
+      - name: 🔐 Load Secrets from Vault
         env:
           VAULT_ADDR: ${{ secrets.ARKSTREAM_VAULT_ADDR }}
           VAULT_TOKEN: ${{ secrets.ARKSTREAM_VAULT_TOKEN }}
         run: |
           echo "🔐 Reading secrets from Vault..."
-          export POSTGRES_PASSWORD=$(vault kv get -field=POSTGRES_PASSWORD secret/arkstream/testenv)
+          export POSTGRES_USER=$(vault kv get -field=POSTGRES_USER secret/arkstream/testenv)
           export MONGO_URI=$(vault kv get -field=MONGO_URI secret/arkstream/testenv)
           export KAFKA_BROKER=$(vault kv get -field=KAFKA_BROKER secret/arkstream/testenv)
-          echo "POSTGRES_PASSWORD=$POSTGRES_PASSWORD" >> $GITHUB_ENV
+          echo "POSTGRES_USER=$POSTGRES_USER" >> $GITHUB_ENV
           echo "MONGO_URI=$MONGO_URI" >> $GITHUB_ENV
           echo "KAFKA_BROKER=$KAFKA_BROKER" >> $GITHUB_ENV
 
-      - name: 🐳 Build and push Docker image
+      # 3️⃣ Rust テストの実行（Vault値を環境変数として利用）
+      - name: 🧪 Run cargo test with secrets
         run: |
-          IMAGE_NAME=ghcr.io/${{ github.repository }}
-          docker build \
-            --build-arg POSTGRES_PASSWORD=$POSTGRES_PASSWORD \
-            --build-arg MONGO_URI=$MONGO_URI \
-            --build-arg KAFKA_BROKER=$KAFKA_BROKER \
-            -t $IMAGE_NAME:latest -t $IMAGE_NAME:$VERSION .
-          docker push $IMAGE_NAME:$VERSION
-          docker push $IMAGE_NAME:latest
+          echo "🔧 Running tests with Vault secrets"
+          echo "POSTGRES_USER=$POSTGRES_USER"
+          echo "MONGO_URI=$MONGO_URI"
+          echo "KAFKA_BROKER=$KAFKA_BROKER"
+          cargo test --all -- --test-threads=1
