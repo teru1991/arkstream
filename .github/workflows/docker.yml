@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v*.*.*'  # バージョンタグで発火
+  workflow_dispatch:  # 手動実行も許可
 
 jobs:
   docker:
@@ -17,7 +18,8 @@ jobs:
         run: |
           curl -fsSL https://releases.hashicorp.com/vault/1.15.2/vault_1.15.2_linux_amd64.zip -o vault.zip
           unzip -o vault.zip
-          sudo mv vault /usr/local/bin/
+          sudo rm -rf /usr/local/bin/vault
+          sudo mv vault /usr/local/bin/vault
           vault --version
 
       # 2️⃣ Vaultから資格情報取得
