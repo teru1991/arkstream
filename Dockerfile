@@ -1,5 +1,5 @@
 # ベースイメージ
-FROM rust:1.77 as builder
+FROM rust:1.77 AS builder
 
 # ビルド引数の受け取り
 ARG POSTGRES_USER
