@@ -13,21 +13,41 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # 1️⃣ Vault CLI インストール前に状態を確認
+      - name: 🔍 Check vault path before install
+        run: |
+          if [ -d /usr/local/bin/vault ]; then
+            echo "📁 /usr/local/bin/vault is a directory"
+            ls -la /usr/local/bin/vault
+          elif [ -f /usr/local/bin/vault ]; then
+            echo "📄 /usr/local/bin/vault is a file"
+            ls -l /usr/local/bin/vault
+          else
+            echo "❌ /usr/local/bin/vault does not exist"
+          fi
+
+      # 2️⃣ Vault CLI インストール
       - name: 📥 Install Vault CLI
         run: |
-            curl -fsSL https://releases.hashicorp.com/vault/1.15.2/vault_1.15.2_linux_amd64.zip -o vault.zip
-            unzip -o vault.zip
+          curl -fsSL https://releases.hashicorp.com/vault/1.15.2/vault_1.15.2_linux_amd64.zip -o vault.zip
+          unzip -o vault.zip
+          if [ -d /usr/local/bin/vault ]; then
+            echo "🗑 Removing directory /usr/local/bin/vault"
             sudo rm -rf /usr/local/bin/vault
-            sudo mv vault /usr/local/bin/
-            vault --version
+          elif [ -f /usr/local/bin/vault ]; then
+            echo "🗑 Removing file /usr/local/bin/vault"
+            sudo rm /usr/local/bin/vault
+          fi
+          sudo mv vault /usr/local/bin/
+          vault --version
 
-      
-
+      # 3️⃣ Vaultから資格情報取得
       - name: 🔐 Load Secrets from Vault
         env:
           VAULT_ADDR: ${{ secrets.ARKSTREAM_VAULT_ADDR }}
           VAULT_TOKEN: ${{ secrets.ARKSTREAM_VAULT_TOKEN }}
         run: |
+          echo "🔐 Reading secrets from Vault..."
           export POSTGRES_PASSWORD=$(vault kv get -field=POSTGRES_PASSWORD secret/arkstream/testenv)
           export MONGO_URI=$(vault kv get -field=MONGO_URI secret/arkstream/testenv)
           export KAFKA_BROKER=$(vault kv get -field=KAFKA_BROKER secret/arkstream/testenv)
@@ -35,9 +55,11 @@ jobs:
           echo "MONGO_URI=$MONGO_URI" >> $GITHUB_ENV
           echo "KAFKA_BROKER=$KAFKA_BROKER" >> $GITHUB_ENV
 
+      # 4️⃣ DockerHub ログイン
       - name: 🔐 Login to Docker Hub
         run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
+      # 5️⃣ Docker イメージ ビルド
       - name: 🐳 Build Docker image
         run: |
           docker build \
@@ -46,5 +68,6 @@ jobs:
             --build-arg KAFKA_BROKER=$KAFKA_BROKER \
             -t yourname/arkstream:${GITHUB_REF##*/} .
 
+      # 6️⃣ Docker イメージ プッシュ
       - name: 🚀 Push Docker image
         run: docker push yourname/arkstream:${GITHUB_REF##*/}
