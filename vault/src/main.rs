@@ -1,4 +1,4 @@
-// vault/tests/vault_test_rs.rs
+// vault/tests/vault_test
 use reqwest::Client;
 use serde::Deserialize;
 

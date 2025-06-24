@@ -16,8 +16,8 @@ if [ ! -d "$EXAMPLE_DIR" ]; then
   exit 1
 fi
 
-# 📝 .example ファイル一覧取得
-example_files=("$EXAMPLE_DIR"/*.example)
+# 📝 .examples ファイル一覧取得
+example_files=("$EXAMPLE_DIR"/*.examples)
 if [ ${#example_files[@]} -eq 0 ]; then
   echo "⚠️ .env/.example 内に .example ファイルが見つかりません"
   exit 0
@@ -27,7 +27,7 @@ echo "🔍 未展開の .env.example ファイル一覧:"
 missing_count=0
 for example_file in "${example_files[@]}"; do
   [ -e "$example_file" ] || continue
-  base_name="$(basename "$example_file" .example)"
+  base_name="$(basename "$example_file" .examples)"
   target_file="$ENV_DIR/$base_name"
 
   if [ ! -f "$target_file" ]; then
@@ -49,10 +49,10 @@ if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
 fi
 
 echo ""
-# 🌀 各 example ファイル処理
+# 🌀 各 examples ファイル処理
 for example_file in "${example_files[@]}"; do
   [ -e "$example_file" ] || continue
-  base_name="$(basename "$example_file" .example)"
+  base_name="$(basename "$example_file" .examples)"
   target_file="$ENV_DIR/$base_name"
 
   if [ -f "$target_file" ]; then

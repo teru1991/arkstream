@@ -22,7 +22,8 @@ RUN mkdir src && echo 'fn main() {}' > src/main.rs && \
 COPY . .
 
 # 必要なクレートだけをビルド（例: vault_test）
-RUN cargo build --release -p vault_test
+RUN cargo run --release --example vault_test
+
 
 FROM debian:bookworm-slim
 

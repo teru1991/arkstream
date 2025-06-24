@@ -1,4 +1,4 @@
 [workspace]
 members = [
-    "vault",  # ← Vault テスト用クレートを追加
+    "vault",         # ← サブクレート
 ]
