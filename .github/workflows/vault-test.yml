@@ -6,25 +6,32 @@ on:
 jobs:
   vault:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout
+      - name: 🧾 Checkout Repository
         uses: actions/checkout@v4
 
-      # ✅ Vault CLI を curl + unzip で手動インストール
-      - name: Install Vault CLI manually
+      - name: 📥 Install Vault CLI manually
         run: |
           echo "📥 Installing Vault CLI..."
           curl -fsSL https://releases.hashicorp.com/vault/1.15.2/vault_1.15.2_linux_amd64.zip -o vault.zip
           unzip -o vault.zip
+
+          # 🧹 Remove existing vault if it is a directory or file
+          if [ -e /usr/local/bin/vault ]; then
+            echo "⚠️ Removing existing /usr/local/bin/vault"
+            sudo rm -rf /usr/local/bin/vault
+          fi
+
           sudo mv vault /usr/local/bin/
           vault --version
 
-      - name: Read Secrets from Vault
+      - name: 🔐 Read Secrets from Vault
+        env:
+          VAULT_ADDR: ${{ secrets.ARKSTREAM_VAULT_ADDR }}
+          VAULT_TOKEN: ${{ secrets.ARKSTREAM_VAULT_TOKEN }}
         run: |
-          export VAULT_ADDR=${{ secrets.ARKSTREAM_VAULT_ADDR }}
-          export VAULT_TOKEN=${{ secrets.ARKSTREAM_VAULT_TOKEN }}
-
-          echo "🚀 Connecting to Vault..."
+          echo "🚀 Connecting to Vault at $VAULT_ADDR"
           vault kv get -format=json secret/arkstream/testenv \
             | jq -r '.data.data' > output.json
 
