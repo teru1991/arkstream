@@ -29,7 +29,8 @@ jobs:
           nohup vault server -dev -dev-root-token-id="root-token" > vault.log 2>&1 &
           sleep 5
         env:
-          VAULT_ADDR: http://127.0.0.1:18201
+          VAULT_ADDR: http://127.0.0.1:8200
+
 
       # 3️⃣ テスト用の秘密値を書き込む（Rustテストで取得）
       - name: 🔐 Seed secrets for test
