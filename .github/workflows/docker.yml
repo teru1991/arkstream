@@ -31,15 +31,19 @@ jobs:
         run: |
           curl -fsSL https://releases.hashicorp.com/vault/1.15.2/vault_1.15.2_linux_amd64.zip -o vault.zip
           unzip -o vault.zip
-          if [ -d /usr/local/bin/vault ]; then
-            echo "🗑 Removing directory /usr/local/bin/vault"
-            sudo rm -rf /usr/local/bin/vault
-          elif [ -f /usr/local/bin/vault ]; then
-            echo "🗑 Removing file /usr/local/bin/vault"
+
+          # vault CLI バイナリを一時名でリネーム（衝突回避）
+          mv vault vault-cli
+
+          # 既存の vault コマンドが存在すれば削除
+          if [ -f /usr/local/bin/vault ]; then
             sudo rm /usr/local/bin/vault
           fi
-          sudo mv vault /usr/local/bin/
+
+          # CLI バイナリを移動（名前は vault に戻す）
+          sudo mv vault-cli /usr/local/bin/vault
           vault --version
+      
 
       # 3️⃣ Vaultから資格情報取得
       - name: 🔐 Load Secrets from Vault
