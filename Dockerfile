@@ -29,6 +29,5 @@ FROM debian:bookworm-slim
 
 RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /usr/src/app/target/release/vault_test /usr/local/bin/vault_test
-
+COPY --from=builder /usr/src/app/target/release/examples/vault_test /usr/local/bin/vault_test
 CMD ["vault_test"]
