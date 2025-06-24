@@ -15,9 +15,12 @@ jobs:
       - name: 🔧 Install Vault CLI
         run: |
           curl -fsSL https://releases.hashicorp.com/vault/1.15.2/vault_1.15.2_linux_amd64.zip -o vault.zip
+          # 👇 vault ディレクトリがある場合は削除（unzipエラー対策）
+          [ -d vault ] && rm -rf vault
           unzip -o vault.zip
           sudo mv vault /usr/local/bin/vault
           vault --version
+      
 
       - name: 🚀 Start Vault Dev Server (background)
         run: |
