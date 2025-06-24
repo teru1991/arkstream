@@ -11,9 +11,8 @@ jobs:
       - name: 📥 Install Vault CLI
         run: |
           curl -fsSL https://releases.hashicorp.com/vault/1.15.2/vault_1.15.2_linux_amd64.zip -o vault.zip
-          mkdir -p vault-bin
-          unzip -o vault.zip -d vault-bin
-          sudo mv vault-bin/vault /usr/local/bin/
+          unzip -o vault.zip
+          sudo mv vault /usr/local/bin/
           vault --version
 
       - name: 🔎 Check required Vault secrets
@@ -25,8 +24,8 @@ jobs:
           for key in "${required_keys[@]}"; do
             if ! vault kv get -mount=secret -field="$key" arkstream/testenv &> /dev/null; then
               echo "❌ $key not found in Vault"
+              vault kv get -mount=secret arkstream/testenv || true
               exit 1
             fi
           done
           echo "✅ All required secrets exist in Vault"
-      
