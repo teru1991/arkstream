@@ -1,9 +1,9 @@
 # ========================================
-# 🛠 Build stage
+# 🌱 Build Stage
 # ========================================
 FROM rust:1.77 AS builder
 
-# 👇 セキュアではないので、開発/テスト用にのみ使用（本番では削除推奨）
+# 環境変数（Vault CLIなどのデバッグ用）
 ARG POSTGRES_USER
 ARG POSTGRES_PASSWORD
 ARG MONGO_URI
@@ -16,36 +16,31 @@ ENV KAFKA_BROKER=${KAFKA_BROKER}
 
 WORKDIR /usr/src/app
 
-# 必要なCargo.toml/Cargo.lockを先にコピーしてビルドキャッシュを効かせる
+# Cargo先にコピー（ビルドキャッシュ最適化）
 COPY Cargo.toml Cargo.lock ./
 COPY vault/Cargo.toml vault/Cargo.toml
 
-# ダミーmainで依存解決
-RUN mkdir src && echo 'fn main() {}' > src/main.rs
-RUN cargo build --release || true  # ダミーmainで一旦解決
-RUN rm -rf src
+# 必要なファイル構成を作ってビルド
+RUN mkdir -p vault/src && echo 'fn main() {}' > vault/src/main.rs
+RUN cargo build --release --package vault_test || echo "initial build placeholder"
+RUN rm -rf vault/src
 
-# 📦 プロジェクトの全体コードをコピー
+# 残りのファイル全てコピー
 COPY . .
 
-# ✅ vault_test example のビルド（ここが重要）
+# vault_test を example としてビルド
 RUN cargo build --release --example vault_test
 
 # ========================================
-# 🏃 Runtime stage
+# 🏃 Runtime Stage
 # ========================================
 FROM debian:bookworm-slim
 
-# Rustのバイナリ実行に必要なライブラリのみ残す
-RUN apt-get update && apt-get install -y \
-    ca-certificates \
- && rm -rf /var/lib/apt/lists/*
+# Vaultバイナリが依存する ca-certificates のみ必要
+RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
 
-# 🔽 vault_test バイナリのみコピー
+# 実行バイナリのコピー（正しいビルド出力場所を指定）
 COPY --from=builder /usr/src/app/target/release/examples/vault_test /usr/local/bin/vault_test
 
-# 🔽 実行環境に渡したいならここに ENV で注入（Vaultから取得したものを runtimeで渡す想定）
-# ENV POSTGRES_USER=...  # 本番ではここに secrets を直接書かない！
-
-# ✅ デフォルト実行コマンド
+# 実行
 CMD ["vault_test"]
