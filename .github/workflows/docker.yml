@@ -13,16 +13,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # 1️⃣ Vault CLI を別名 vault-cli としてインストール
-      - name: 📥 Install Vault CLI as vault-cli
+      # 1️⃣ Vault CLI を $HOME/bin/vault-cli としてインストール
+      - name: 📥 Install Vault CLI as vault-cli in $HOME/bin
         run: |
+          mkdir -p $HOME/bin
           curl -fsSL https://releases.hashicorp.com/vault/1.15.2/vault_1.15.2_linux_amd64.zip -o vault.zip
           unzip -o vault.zip
           chmod +x vault
-          sudo mv vault /usr/local/bin/vault-cli
+          mv vault $HOME/bin/vault-cli
+          echo "$HOME/bin" >> $GITHUB_PATH  # GitHub Actions の PATH に追加
           vault-cli --version
 
-      # 2️⃣ Vaultから資格情報取得（vault → vault-cli に変更）
+      # 2️⃣ Vaultから資格情報取得
       - name: 🔐 Load Secrets from Vault
         env:
           VAULT_ADDR: ${{ secrets.ARKSTREAM_VAULT_ADDR }}
