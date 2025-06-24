@@ -3,7 +3,7 @@ name: Docker Build and Push
 on:
   push:
     tags:
-      - 'v*.*.*'  # タグ push で実行
+      - 'v*.*.*'
   workflow_dispatch:
 
 jobs:
@@ -11,42 +11,41 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # ✅ リポジトリをチェックアウト
       - uses: actions/checkout@v4
 
-      # ✅ Vault CLI を公式アクションでセットアップ（バージョン指定可）
-      - name: 🛠️ Set up Vault CLI
-        uses: hashicorp/setup-vault@v1
-        with:
-          version: 1.15.2
+      # ✅ Vault CLI を手動インストール（hashicorp/setup-vault は存在しないため）
+      - name: 🛠️ Install Vault CLI
+        run: |
+          curl -fsSL https://releases.hashicorp.com/vault/1.15.2/vault_1.15.2_linux_amd64.zip -o vault.zip
+          unzip -o vault.zip
+          sudo mv vault /usr/local/bin/vault
+          vault --version
 
-      # ✅ Vault から Secrets を取得して環境変数へ
+      # ✅ Vault Secrets 読み込み
       - name: 🔐 Load secrets from Vault
         env:
           VAULT_ADDR: ${{ secrets.ARKSTREAM_VAULT_ADDR }}
           VAULT_TOKEN: ${{ secrets.ARKSTREAM_VAULT_TOKEN }}
         run: |
           echo "🔐 Reading secrets from Vault..."
-
           export POSTGRES_PASSWORD=$(vault kv get -field=POSTGRES_PASSWORD secret/arkstream/testenv || echo "")
           export MONGO_URI=$(vault kv get -field=MONGO_URI secret/arkstream/testenv || echo "")
           export KAFKA_BROKER=$(vault kv get -field=KAFKA_BROKER secret/arkstream/testenv || echo "")
 
           if [[ -z "$POSTGRES_PASSWORD" || -z "$MONGO_URI" || -z "$KAFKA_BROKER" ]]; then
-            echo "❌ One or more required secrets are missing. Failing the build."
+            echo "❌ One or more secrets are missing."
             exit 1
           fi
 
-          echo "✅ Secrets loaded."
           echo "POSTGRES_PASSWORD=$POSTGRES_PASSWORD" >> $GITHUB_ENV
           echo "MONGO_URI=$MONGO_URI" >> $GITHUB_ENV
           echo "KAFKA_BROKER=$KAFKA_BROKER" >> $GITHUB_ENV
 
-      # ✅ DockerHub にログイン（必要に応じて）
+      # ✅ DockerHub ログイン
       - name: 🔐 Login to Docker Hub
         run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
-      # ✅ Dockerイメージをビルド
+      # ✅ Docker ビルド
       - name: 🐳 Build Docker image
         run: |
           docker build \
@@ -55,6 +54,6 @@ jobs:
             --build-arg KAFKA_BROKER=$KAFKA_BROKER \
             -t yourname/arkstream:${GITHUB_REF##*/} .
 
-      # ✅ DockerイメージをPush
+      # ✅ Docker Push
       - name: 🚀 Push Docker image
         run: docker push yourname/arkstream:${GITHUB_REF##*/}
