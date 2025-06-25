@@ -54,8 +54,8 @@ jobs:
             --build-arg POSTGRES_PASSWORD=$POSTGRES_PASSWORD \
             --build-arg MONGO_URI=$MONGO_URI \
             --build-arg KAFKA_BROKER=$KAFKA_BROKER \
-            -t yourname/arkstream:${GITHUB_REF##*/} .
+            -t teru1991/arkstream:${GITHUB_REF##*/} .
 
       # 5️⃣ Docker イメージ プッシュ
       - name: 🚀 Push Docker image
-        run: docker push yourname/arkstream:${GITHUB_REF##*/}
+        run: docker push teru1991/arkstream:${GITHUB_REF##*/} .
