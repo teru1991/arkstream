@@ -2,10 +2,11 @@ name: Vault Secret Check
 
 on:
   workflow_dispatch:
+  workflow_call:  # ✅ 他ワークフローからも呼び出せるようにする
 
 jobs:
-  check-vault-secrets:
-    name: 🛡️ Check Vault Secrets (Dev Server)
+  check-secrets:
+    name: 🛡️ Check Required Secrets from Vault
     runs-on: ubuntu-latest
 
     steps:
@@ -15,33 +16,15 @@ jobs:
       - name: 🔧 Install Vault CLI
         run: |
           curl -fsSL https://releases.hashicorp.com/vault/1.15.2/vault_1.15.2_linux_amd64.zip -o vault.zip
-          # 👇 vault ディレクトリがある場合は削除（unzipエラー対策）
-          [ -d vault ] && rm -rf vault
           unzip -o vault.zip
           sudo mv vault /usr/local/bin/vault
           vault --version
-      
 
-      - name: 🚀 Start Vault Dev Server (background)
-        run: |
-          nohup vault server -dev -dev-root-token-id="root-token" > vault.log 2>&1 &
-          sleep 5
+      - name: 🔍 Verify Secrets from Vault
         env:
-          VAULT_DEV_ROOT_TOKEN_ID: root-token
-
-      - name: 🔑 Put test secrets into Vault
+          VAULT_ADDR: ${{ secrets.ARKSTREAM_VAULT_ADDR }}
+          VAULT_TOKEN: ${{ secrets.ARKSTREAM_VAULT_TOKEN }}
         run: |
-          export VAULT_ADDR=http://127.0.0.1:8200
-          export VAULT_TOKEN=root-token
-          vault kv put secret/arkstream/testenv \
-            POSTGRES_PASSWORD=your_postgres_password \
-            MONGO_URI=your_mongo_uri \
-            KAFKA_BROKER=your_kafka_broker
-
-      - name: ✅ Check required secrets
-        run: |
-          export VAULT_ADDR=http://127.0.0.1:8200
-          export VAULT_TOKEN=root-token
           required_keys=("POSTGRES_PASSWORD" "MONGO_URI" "KAFKA_BROKER")
           for key in "${required_keys[@]}"; do
             if ! vault kv get -mount=secret -field="$key" arkstream/testenv &> /dev/null; then
