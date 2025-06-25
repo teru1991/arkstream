@@ -18,7 +18,7 @@ jobs:
           curl -fsSL https://releases.hashicorp.com/vault/1.15.2/vault_1.15.2_linux_amd64.zip -o vault.zip
           mkdir -p vault-bin
           unzip -o vault.zip -d vault-bin
-          sudo rm -rf /usr/local/bin/vault  # ✅ ディレクトリでも強制削除できる
+          sudo rm -rf /usr/local/bin/vault
           sudo mv vault-bin/vault /usr/local/bin/vault
           vault --version
 
@@ -45,3 +45,4 @@ jobs:
             exit 1
           else
             echo "✅ All required secrets exist in Vault"
+          fi
