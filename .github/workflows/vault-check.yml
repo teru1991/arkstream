@@ -2,7 +2,7 @@ name: Vault Secret Check
 
 on:
   workflow_dispatch:
-  workflow_call:  # ✅ 他ワークフローからも呼び出せるようにする
+  workflow_call:
 
 jobs:
   check-secrets:
@@ -16,8 +16,10 @@ jobs:
       - name: 🔧 Install Vault CLI
         run: |
           curl -fsSL https://releases.hashicorp.com/vault/1.15.2/vault_1.15.2_linux_amd64.zip -o vault.zip
-          unzip -o vault.zip
-          sudo mv vault /usr/local/bin/vault
+          mkdir -p vault-bin
+          unzip -o vault.zip -d vault-bin
+          sudo rm -rf /usr/local/bin/vault  # ✅ ディレクトリでも強制削除できる
+          sudo mv vault-bin/vault /usr/local/bin/vault
           vault --version
 
       - name: 🔍 Verify Secrets from Vault
@@ -26,11 +28,20 @@ jobs:
           VAULT_TOKEN: ${{ secrets.ARKSTREAM_VAULT_TOKEN }}
         run: |
           required_keys=("POSTGRES_PASSWORD" "MONGO_URI" "KAFKA_BROKER")
+          missing_keys=()
+
           for key in "${required_keys[@]}"; do
             if ! vault kv get -mount=secret -field="$key" arkstream/testenv &> /dev/null; then
               echo "❌ $key not found in Vault"
-              vault kv get -mount=secret arkstream/testenv || true
-              exit 1
+              missing_keys+=("$key")
+            else
+              echo "✅ $key is present"
             fi
           done
-          echo "✅ All required secrets exist in Vault"
+
+          if [ "${#missing_keys[@]}" -gt 0 ]; then
+            echo "🚨 Missing secrets: ${missing_keys[*]}"
+            vault kv get -mount=secret arkstream/testenv || true
+            exit 1
+          else
+            echo "
