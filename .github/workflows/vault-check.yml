@@ -15,18 +15,35 @@ jobs:
 
       - name: 🔧 Install Vault CLI
         run: |
-          curl -fsSL https://releases.hashicorp.com/vault/1.15.2/vault_1.15.2_linux_amd64.zip -o vault.zip
+          echo "🔧 Downloading Vault CLI..."
+          curl -fsSL https://releases.hashicorp.com/vault/1.15.2/vault_1.15.2_linux_amd64.zip -o vault.zip || { echo "❌ Failed to download Vault CLI"; exit 1; }
+
           mkdir -p vault-bin
-          unzip -o vault.zip -d vault-bin
-          sudo rm -rf /usr/local/bin/vault
+          unzip -o vault.zip -d vault-bin || { echo "❌ Failed to unzip Vault CLI"; exit 1; }
+
+          sudo rm -f /usr/local/bin/vault
           sudo mv vault-bin/vault /usr/local/bin/vault
           vault --version
 
-      - name: 🔍 Verify Secrets from Vault
+      - name: 🔍 Verify Required Secrets from Vault
         env:
           VAULT_ADDR: ${{ secrets.ARKSTREAM_VAULT_ADDR }}
           VAULT_TOKEN: ${{ secrets.ARKSTREAM_VAULT_TOKEN }}
         run: |
+          set -euo pipefail
+
+          echo "🔐 Checking environment variables..."
+          if [ -z "$VAULT_ADDR" ] || [ -z "$VAULT_TOKEN" ]; then
+            echo "❌ VAULT_ADDR or VAULT_TOKEN is not set"
+            exit 1
+          fi
+
+          if ! command -v vault &>/dev/null; then
+            echo "❌ Vault CLI is not available"
+            exit 1
+          fi
+
+          echo "🔎 Checking required secrets..."
           required_keys=("POSTGRES_PASSWORD" "MONGO_URI" "KAFKA_BROKER")
           missing_keys=()
 
@@ -41,6 +58,7 @@ jobs:
 
           if [ "${#missing_keys[@]}" -gt 0 ]; then
             echo "🚨 Missing secrets: ${missing_keys[*]}"
+            echo "📋 Dumping full path contents for debug:"
             vault kv get -mount=secret arkstream/testenv || true
             exit 1
           else
