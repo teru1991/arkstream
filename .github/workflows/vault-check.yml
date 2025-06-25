@@ -44,4 +44,4 @@ jobs:
             vault kv get -mount=secret arkstream/testenv || true
             exit 1
           else
-            echo "
+            echo "✅ All required secrets exist in Vault"
