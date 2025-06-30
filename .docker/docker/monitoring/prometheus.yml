@@ -1,0 +1,21 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'arkstream-bots'
+    static_configs:
+      - targets: ['host.docker.internal:9100', 'host.docker.internal:9200']
+        labels:
+          group: 'bots'
+
+  - job_name: 'kafka'
+    static_configs:
+      - targets: ['host.docker.internal:9308']
+
+  - job_name: 'node_exporter'
+    static_configs:
+      - targets: ['host.docker.internal:9101']
