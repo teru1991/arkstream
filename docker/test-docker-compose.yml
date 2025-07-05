@@ -1,0 +1,9 @@
+version: "3.9"
+
+services:
+  vault:
+    image: vault:1.13.3
+    container_name: test_vault
+    command: server -dev -dev-listen-address="0.0.0.0:8200"
+    ports:
+      - "18200:8200"

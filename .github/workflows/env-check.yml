@@ -7,18 +7,18 @@ jobs:
   vault-check:
     runs-on: ubuntu-latest
     steps:
-      - name: Check Vault secrets
+      - name: 🔍 Check Vault secrets
         env:
           VAULT_ADDR: ${{ secrets.ARKSTREAM_VAULT_ADDR }}
           VAULT_TOKEN: ${{ secrets.ARKSTREAM_VAULT_TOKEN }}
         run: |
           echo "🔍 Checking required secrets in Vault..."
 
-          REQUIRED_KEYS=("POSTGRES_USER" "POSTGRES_PASSWORD" "MONGO_URI" "KAFKA_BROKER")
+          REQUIRED_KEYS=("POSTGRES_PASSWORD" "MONGO_URI" "KAFKA_BROKER")
           for KEY in "${REQUIRED_KEYS[@]}"; do
-            VALUE=$(vault kv get -field=$KEY secret/arkstream/testenv 2>/dev/null || true)
+            VALUE=$(vault kv get -field=$KEY secret/arkstream/production 2>/dev/null || true)
             if [ -z "$VALUE" ]; then
-              echo "❌ Missing key: $KEY in Vault path: secret/arkstream/testenv"
+              echo "❌ Missing key: $KEY in Vault path: secret/arkstream/production"
               exit 1
             else
               echo "✅ Found: $KEY"

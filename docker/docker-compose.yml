@@ -2,67 +2,70 @@ version: "3.9"
 
 services:
   vault:
-    image: vault:1.15.2
+    image: vault:1.13.3
     container_name: ark_vault
     restart: unless-stopped
     ports:
-      - "8200:8200"
+      - "443:8200"  # HTTPSポートを公開
     environment:
-      VAULT_LOCAL_CONFIG: |
-        {
-          "listener": [{
-            "tcp": {
-              "address": "0.0.0.0:8200",
-              "tls_disable": 1
-            }
-          }],
-          "storage": {
-            "file": {
-              "path": "/vault/file"
-            }
-          },
-          "api_addr": "http://0.0.0.0:8200",
-          "ui": true
-        }
+      VAULT_ADDR: "https://localhost:8200"
+      VAULT_API_ADDR: "https://localhost:8200"
+      VAULT_CLUSTER_ADDR: "https://localhost:8201"
+      VAULT_SKIP_VERIFY: "false"  # Vaultが接続を検証するように設定
     volumes:
-      - ark_vault_data:/vault/file
+      - ./Storage/vault/data:/vault/data   # 新しいパスに変更
+      - ./vault/config:/vault/config
+      - ./vault/cert:/vault/cert
     cap_add:
       - IPC_LOCK
+    networks:
+      - arkstream_net
+    secrets:
+      - vault_tls_cert
+      - vault_tls_key
 
   postgres:
     image: postgres:15
     container_name: ark_postgres
     restart: unless-stopped
     ports:
-      - "127.0.0.1:5432:5432"   # 外部からアクセス禁止
+      - "127.0.0.1:5432:5432"
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_USER: arkstream
       POSTGRES_DB: arkstream
     volumes:
-      - ark_postgres_data:/var/lib/postgresql/data
+      - ./Storage/postgres/data:/var/lib/postgresql/data  # 新しいパスに変更
+    networks:
+      - arkstream_net
 
   mongo:
     image: mongo:6
     container_name: ark_mongo
     restart: unless-stopped
     ports:
-      - "127.0.0.1:27017:27017" # 外部からアクセス禁止
+      - "127.0.0.1:27017:27017"
     volumes:
-      - ark_mongo_data:/data/db
+      - ./Storage/mongo/data:/data/db  # 新しいパスに変更
+    networks:
+      - arkstream_net
 
   kafka:
-    image: bitnami/kafka:latest
+    image: bitnami/kafka:3.5
     container_name: ark_kafka
     restart: unless-stopped
     ports:
       - "9092:9092"
     environment:
-      KAFKA_CFG_BROKER_ID: 1
+      KAFKA_BROKER_ID: 1
       KAFKA_CFG_LISTENERS: PLAINTEXT://:9092
-      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://192.168.11.10:9092
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
       KAFKA_CFG_ZOOKEEPER_CONNECT: zookeeper:2181
       ALLOW_PLAINTEXT_LISTENER: "yes"
+    volumes:
+      - ./Storage/kafka/data:/var/lib/kafka/data  # 新しいパスに変更
+    networks:
+      - arkstream_net
 
   zookeeper:
     image: bitnami/zookeeper:latest
@@ -72,8 +75,21 @@ services:
       - "2181:2181"
     environment:
       ALLOW_ANONYMOUS_LOGIN: "yes"
+    networks:
+      - arkstream_net
+
+networks:
+  arkstream_net:
+    driver: bridge
 
 volumes:
-  ark_vault_data:
-  ark_postgres_data:
-  ark_mongo_data:
+  vault_data:
+  postgres_data:
+  mongo_data:
+  kafka_data:
+
+secrets:
+  vault_tls_cert:
+    file: ./vault/cert/vault-cert.pem
+  vault_tls_key:
+    file: ./vault/cert/vault-key.pem

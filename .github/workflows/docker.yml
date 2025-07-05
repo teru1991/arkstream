@@ -13,41 +13,35 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # 1️⃣ Vault CLI を $HOME/bin/vault-cli としてインストール
-      - name: 📥 Install Vault CLI as vault-cli in $HOME/bin
+      - name: 📥 Install Vault CLI
         run: |
           mkdir -p $HOME/bin
-          mkdir -p /tmp/vault-install
-          curl -fsSL https://releases.hashicorp.com/vault/1.15.2/vault_1.15.2_linux_amd64.zip -o /tmp/vault-install/vault.zip
-          unzip -o /tmp/vault-install/vault.zip -d /tmp/vault-install
-          chmod +x /tmp/vault-install/vault
-          mv /tmp/vault-install/vault $HOME/bin/vault-cli
+          curl -fsSL https://releases.hashicorp.com/vault/1.15.2/vault_1.15.2_linux_amd64.zip -o vault.zip
+          unzip -o vault.zip -d $HOME/bin
+          chmod +x $HOME/bin/vault
           echo "$HOME/bin" >> $GITHUB_PATH
+          vault --version
 
-      - name: ✅ Check Vault CLI version
-        run: vault-cli --version
-
-      
-
-      # 2️⃣ Vaultから資格情報取得
       - name: 🔐 Load Secrets from Vault
         env:
           VAULT_ADDR: ${{ secrets.ARKSTREAM_VAULT_ADDR }}
           VAULT_TOKEN: ${{ secrets.ARKSTREAM_VAULT_TOKEN }}
         run: |
-          echo "🔐 Reading secrets from Vault..."
-          export POSTGRES_PASSWORD=$(vault-cli kv get -field=POSTGRES_PASSWORD secret/arkstream/testenv)
-          export MONGO_URI=$(vault-cli kv get -field=MONGO_URI secret/arkstream/testenv)
-          export KAFKA_BROKER=$(vault-cli kv get -field=KAFKA_BROKER secret/arkstream/testenv)
+          export POSTGRES_PASSWORD=$(vault kv get -field=POSTGRES_PASSWORD secret/arkstream/production)
+          export MONGO_URI=$(vault kv get -field=MONGO_URI secret/arkstream/production)
+          export KAFKA_BROKER=$(vault kv get -field=KAFKA_BROKER secret/arkstream/production)
           echo "POSTGRES_PASSWORD=$POSTGRES_PASSWORD" >> $GITHUB_ENV
           echo "MONGO_URI=$MONGO_URI" >> $GITHUB_ENV
           echo "KAFKA_BROKER=$KAFKA_BROKER" >> $GITHUB_ENV
+          cat <<EOF > .env
+          POSTGRES_PASSWORD=$POSTGRES_PASSWORD
+          MONGO_URI=$MONGO_URI
+          KAFKA_BROKER=$KAFKA_BROKER
+          EOF
 
-      # 3️⃣ DockerHub ログイン
       - name: 🔐 Login to Docker Hub
         run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
-      # 4️⃣ Docker イメージ ビルド
       - name: 🐳 Build Docker image
         run: |
           docker build \
@@ -56,7 +50,5 @@ jobs:
             --build-arg KAFKA_BROKER=$KAFKA_BROKER \
             -t teru1991/arkstream:${GITHUB_REF##*/} .
 
-      # 5️⃣ Docker イメージ プッシュ
       - name: 🚀 Push Docker image
         run: docker push teru1991/arkstream:${GITHUB_REF##*/}
-

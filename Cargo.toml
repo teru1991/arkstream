@@ -1,5 +1,5 @@
 [workspace]
 members = [
-    "vault",         # ← サブクレート
+    "docker/vault",         # ← サブクレート
     "modules/bot_manager",
 ]
