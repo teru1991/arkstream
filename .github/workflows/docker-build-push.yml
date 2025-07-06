@@ -2,8 +2,8 @@ name: Docker Build and Push
 
 on:
   push:
-    tags:
-      - "v*"
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
@@ -63,7 +63,7 @@ jobs:
             --build-arg POSTGRES_PASSWORD=$POSTGRES_PASSWORD \
             --build-arg MONGO_URI=$MONGO_URI \
             --build-arg KAFKA_BROKER=$KAFKA_BROKER \
-            -t teru1991/arkstream:${GITHUB_REF##*/} .
+            -t teru1991/arkstream:${{ github.sha }} .
 
       - name: 🚀 Push Docker image
-        run: docker push teru1991/arkstream:${GITHUB_REF##*/}
+        run: docker push teru1991/arkstream:${{ github.sha }}
