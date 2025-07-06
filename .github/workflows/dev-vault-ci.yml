@@ -1,0 +1,97 @@
+name: Rust Test & Docker Build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  setup-vault:
+    name: 🚀 Start Vault Dev Server
+    runs-on: ubuntu-latest
+
+    outputs:
+      vault_token: ${{ steps.set-token.outputs.vault_token }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 📥 Install Vault CLI
+        run: |
+          curl -fsSL https://releases.hashicorp.com/vault/1.15.2/vault_1.15.2_linux_amd64.zip -o vault.zip
+          mkdir -p vault-bin
+          unzip -o vault.zip -d vault-bin
+          sudo mv vault-bin/vault /usr/local/bin/
+          vault --version
+
+      - name: 🚀 Start Vault Dev Server
+        run: |
+          nohup vault server -dev -dev-root-token-id="root-token" > vault.log 2>&1 &
+          sleep 5
+        env:
+          VAULT_ADDR: http://127.0.0.1:8200
+
+      - name: 🔐 Seed Secrets for Test
+        env:
+          VAULT_ADDR: http://127.0.0.1:8200
+          VAULT_TOKEN: root-token
+        run: |
+          vault kv put secret/arkstream/testenv \
+            POSTGRES_PASSWORD=devpass \
+            MONGO_URI="mongodb://localhost:27017" \
+            KAFKA_BROKER="localhost:9092" \
+            BINANCE_API_KEY="dummy_key" \
+            BINANCE_SECRET_KEY="dummy_secret"
+
+      - id: set-token
+        run: echo "vault_token=root-token" >> $GITHUB_OUTPUT
+
+  rust-test:
+    name: 🧪 Rust Tests with Vault
+    runs-on: ubuntu-latest
+    needs: setup-vault
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 🧪 Run Rust Tests
+        env:
+          VAULT_ADDR: http://127.0.0.1:8200
+          VAULT_TOKEN: ${{ needs.setup-vault.outputs.vault_token }}
+        run: cargo test -- --test-threads=1
+
+  docker-build:
+    name: 🐳 Docker Build with Vault Secrets
+    runs-on: ubuntu-latest
+    needs: setup-vault
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 📦 Install Vault CLI
+        run: |
+          curl -fsSL https://releases.hashicorp.com/vault/1.15.2/vault_1.15.2_linux_amd64.zip -o vault.zip
+          mkdir -p vault-bin
+          unzip -o vault.zip -d vault-bin
+          sudo mv vault-bin/vault /usr/local/bin/
+          vault --version
+
+      - name: 📤 Fetch Secrets for Docker Build
+        env:
+          VAULT_ADDR: http://127.0.0.1:8200
+          VAULT_TOKEN: ${{ needs.setup-vault.outputs.vault_token }}
+        run: |
+          vault kv get -format=json secret/arkstream/testenv > secret.json
+          POSTGRES_PASSWORD=$(jq -r ".data.data.POSTGRES_PASSWORD" secret.json)
+          MONGO_URI=$(jq -r ".data.data.MONGO_URI" secret.json)
+          KAFKA_BROKER=$(jq -r ".data.data.KAFKA_BROKER" secret.json)
+
+          echo "POSTGRES_PASSWORD=$POSTGRES_PASSWORD" >> $GITHUB_ENV
+          echo "MONGO_URI=$MONGO_URI" >> $GITHUB_ENV
+          echo "KAFKA_BROKER=$KAFKA_BROKER" >> $GITHUB_ENV
+
+      - name: 🐳 Docker Build
+        run: |
+          docker build \
+            --build-arg POSTGRES_PASSWORD=$POSTGRES_PASSWORD \
+            --build-arg MONGO_URI=$MONGO_URI \
+            --build-arg KAFKA_BROKER=$KAFKA_BROKER \
+            -t arkstream:dev .

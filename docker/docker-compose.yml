@@ -5,37 +5,28 @@ services:
     image: vault:1.13.3
     container_name: ark_vault
     restart: unless-stopped
+    command: server  # ← 本番運用では必ず server
     ports:
-      - "443:8200"  # HTTPSポートを公開
-    environment:
-      VAULT_ADDR: "https://localhost:8200"
-      VAULT_API_ADDR: "https://localhost:8200"
-      VAULT_CLUSTER_ADDR: "https://localhost:8201"
-      VAULT_SKIP_VERIFY: "false"  # Vaultが接続を検証するように設定
+      - "443:8200"  # HTTPSポートを公開（443にマッピング）
     volumes:
-      - ./Storage/vault/data:/vault/data   # 新しいパスに変更
-      - ./vault/config:/vault/config
-      - ./vault/cert:/vault/cert
+      - ./Storage/vault/data:/vault/data
+      - ./vault/config:/vault/config     # vault.hcl をここに置く
+      - ./vault/cert:/vault/cert         # TLS証明書を置く
     cap_add:
-      - IPC_LOCK
+      - IPC_LOCK                         # mlock用（disable_mlock=trueなら無効化される）
     networks:
       - arkstream_net
-    secrets:
-      - vault_tls_cert
-      - vault_tls_key
+    depends_on:
+      - consul                           # consulが先に起動するように
+    environment:
+      VAULT_ADDR: "https://localhost:8200"
 
-  postgres:
-    image: postgres:15
-    container_name: ark_postgres
+  consul:
+    image: consul:1.15.4
+    container_name: ark_consul
     restart: unless-stopped
     ports:
-      - "127.0.0.1:5432:5432"
-    environment:
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_USER: arkstream
-      POSTGRES_DB: arkstream
-    volumes:
-      - ./Storage/postgres/data:/var/lib/postgresql/data  # 新しいパスに変更
+      - "8500:8500"   # ConsulのUI/API
     networks:
       - arkstream_net
 
@@ -46,7 +37,7 @@ services:
     ports:
       - "127.0.0.1:27017:27017"
     volumes:
-      - ./Storage/mongo/data:/data/db  # 新しいパスに変更
+      - ./Storage/mongo/data:/data/db
     networks:
       - arkstream_net
 
@@ -63,7 +54,7 @@ services:
       KAFKA_CFG_ZOOKEEPER_CONNECT: zookeeper:2181
       ALLOW_PLAINTEXT_LISTENER: "yes"
     volumes:
-      - ./Storage/kafka/data:/var/lib/kafka/data  # 新しいパスに変更
+      - ./Storage/kafka/data:/var/lib/kafka/data
     networks:
       - arkstream_net
 
@@ -81,15 +72,3 @@ services:
 networks:
   arkstream_net:
     driver: bridge
-
-volumes:
-  vault_data:
-  postgres_data:
-  mongo_data:
-  kafka_data:
-
-secrets:
-  vault_tls_cert:
-    file: ./vault/cert/vault-cert.pem
-  vault_tls_key:
-    file: ./vault/cert/vault-key.pem

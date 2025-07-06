@@ -3,7 +3,7 @@ name: Docker Build and Push
 on:
   push:
     tags:
-      - 'v*.*.*'
+      - "v*"
   workflow_dispatch:
 
 jobs:
@@ -22,22 +22,37 @@ jobs:
           echo "$HOME/bin" >> $GITHUB_PATH
           vault --version
 
-      - name: 🔐 Load Secrets from Vault
+      - name: 🔐 Login to Vault using AppRole
+        id: vault-login
         env:
           VAULT_ADDR: ${{ secrets.ARKSTREAM_VAULT_ADDR }}
-          VAULT_TOKEN: ${{ secrets.ARKSTREAM_VAULT_TOKEN }}
         run: |
-          export POSTGRES_PASSWORD=$(vault kv get -field=POSTGRES_PASSWORD secret/arkstream/production)
-          export MONGO_URI=$(vault kv get -field=MONGO_URI secret/arkstream/production)
-          export KAFKA_BROKER=$(vault kv get -field=KAFKA_BROKER secret/arkstream/production)
+          vault write -format=json auth/approle/login \
+            role_id="${{ secrets.ARKSTREAM_VAULT_ROLE_ID }}" \
+            secret_id="${{ secrets.ARKSTREAM_VAULT_SECRET_ID }}" > login.json
+
+          VAULT_TOKEN=$(jq -r ".auth.client_token" login.json)
+          echo "::add-mask::$VAULT_TOKEN"
+          echo "VAULT_TOKEN=$VAULT_TOKEN" >> $GITHUB_ENV
+
+      - name: 📤 Fetch Secrets for Docker Build
+        env:
+          VAULT_ADDR: ${{ secrets.ARKSTREAM_VAULT_ADDR }}
+          VAULT_TOKEN: ${{ env.VAULT_TOKEN }}
+        run: |
+          vault kv get -format=json secret/arkstream/production > secret.json
+
+          POSTGRES_PASSWORD=$(jq -r ".data.data.POSTGRES_PASSWORD" secret.json)
+          MONGO_URI=$(jq -r ".data.data.MONGO_URI" secret.json)
+          KAFKA_BROKER=$(jq -r ".data.data.KAFKA_BROKER" secret.json)
+
+          echo "::add-mask::$POSTGRES_PASSWORD"
+          echo "::add-mask::$MONGO_URI"
+          echo "::add-mask::$KAFKA_BROKER"
+
           echo "POSTGRES_PASSWORD=$POSTGRES_PASSWORD" >> $GITHUB_ENV
           echo "MONGO_URI=$MONGO_URI" >> $GITHUB_ENV
           echo "KAFKA_BROKER=$KAFKA_BROKER" >> $GITHUB_ENV
-          cat <<EOF > .env
-          POSTGRES_PASSWORD=$POSTGRES_PASSWORD
-          MONGO_URI=$MONGO_URI
-          KAFKA_BROKER=$KAFKA_BROKER
-          EOF
 
       - name: 🔐 Login to Docker Hub
         run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
