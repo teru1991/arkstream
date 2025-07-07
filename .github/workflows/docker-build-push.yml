@@ -8,7 +8,6 @@ on:
   schedule:
     - cron: '0 0 * * 1'
 
-
 jobs:
   docker:
     runs-on: ubuntu-latest
@@ -23,7 +22,9 @@ jobs:
           unzip -o vault.zip -d $HOME/bin
           chmod +x $HOME/bin/vault
           echo "$HOME/bin" >> $GITHUB_PATH
-          vault --version
+
+      - name: 📥 Check Vault CLI Version
+        run: vault --version
 
       - name: 🔐 Login to Vault using AppRole
         id: vault-login
@@ -41,8 +42,9 @@ jobs:
       - name: 📤 Fetch Secrets for Docker Build
         env:
           VAULT_ADDR: ${{ secrets.ARKSTREAM_VAULT_ADDR }}
-          VAULT_TOKEN: ${{ env.VAULT_TOKEN }}
         run: |
+          export VAULT_TOKEN="$VAULT_TOKEN"
+
           vault kv get -format=json secret/arkstream/production > secret.json
 
           POSTGRES_PASSWORD=$(jq -r ".data.data.POSTGRES_PASSWORD" secret.json)
