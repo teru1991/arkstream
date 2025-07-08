@@ -15,59 +15,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: 📥 Install Vault CLI
-        run: |
-          mkdir -p $HOME/bin
-          curl -fsSL https://releases.hashicorp.com/vault/1.15.2/vault_1.15.2_linux_amd64.zip -o vault.zip
-          unzip -o vault.zip -d $HOME/bin
-          chmod +x $HOME/bin/vault
-          echo "$HOME/bin" >> $GITHUB_PATH
-
-      - name: 📥 Check Vault CLI Version
-        run: vault --version
-
-      - name: 🔐 Login to Vault using AppRole
-        id: vault-login
-        run: |
-          export VAULT_ADDR="${{ secrets.ARKSTREAM_VAULT_ADDR }}"
-          
-          vault write -format=json auth/approle/login \
-            role_id="${{ secrets.ARKSTREAM_VAULT_ROLE_ID }}" \
-            secret_id="${{ secrets.ARKSTREAM_VAULT_SECRET_ID }}" > login.json
-          
-          VAULT_TOKEN=$(jq -r ".auth.client_token" login.json)
-          echo "::add-mask::$VAULT_TOKEN"
-          echo "VAULT_TOKEN=$VAULT_TOKEN" >> $GITHUB_ENV
-
-      - name: 📤 Fetch Secrets for Docker Build
-        run: |
-          export VAULT_ADDR="${{ secrets.ARKSTREAM_VAULT_ADDR }}"
-          export VAULT_TOKEN="${{ env.VAULT_TOKEN }}"
-
-          vault kv get -format=json secret/arkstream/production > secret.json
-
-          POSTGRES_PASSWORD=$(jq -r ".data.data.POSTGRES_PASSWORD" secret.json)
-          MONGO_URI=$(jq -r ".data.data.MONGO_URI" secret.json)
-          KAFKA_BROKER=$(jq -r ".data.data.KAFKA_BROKER" secret.json)
-
-          echo "::add-mask::$POSTGRES_PASSWORD"
-          echo "::add-mask::$MONGO_URI"
-          echo "::add-mask::$KAFKA_BROKER"
-
-          echo "POSTGRES_PASSWORD=$POSTGRES_PASSWORD" >> $GITHUB_ENV
-          echo "MONGO_URI=$MONGO_URI" >> $GITHUB_ENV
-          echo "KAFKA_BROKER=$KAFKA_BROKER" >> $GITHUB_ENV
-
-
       - name: 🔐 Login to Docker Hub
         run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
       - name: 🐳 Build Docker image
         env:
-          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
-          MONGO_URI: ${{ env.MONGO_URI }}
-          KAFKA_BROKER: ${{ env.KAFKA_BROKER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          MONGO_URI: ${{ secrets.MONGO_URI }}
+          KAFKA_BROKER: ${{ secrets.KAFKA_BROKER }}
         run: |
+          echo "::add-mask::$POSTGRES_PASSWORD"
+          echo "::add-mask::$MONGO_URI"
+          echo "::add-mask::$KAFKA_BROKER"
+
           docker build \
             --build-arg POSTGRES_PASSWORD=$POSTGRES_PASSWORD \
             --build-arg MONGO_URI=$MONGO_URI \
