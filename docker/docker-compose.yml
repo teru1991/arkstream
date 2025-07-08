@@ -5,19 +5,19 @@ services:
     image: vault:1.13.3
     container_name: ark_vault
     restart: unless-stopped
-    command: server  # ← 本番運用では必ず server
+    command: server
     ports:
-      - "443:8200"  # HTTPSポートを公開（443にマッピング）
+      - "443:8200"
     volumes:
       - ./Storage/vault/data:/vault/data
-      - ./vault/config:/vault/config     # vault.hcl をここに置く
-      - ./vault/cert:/vault/cert         # TLS証明書を置く
+      - ./vault/config:/vault/config
+      - ./vault/cert:/vault/cert
     cap_add:
-      - IPC_LOCK                         # mlock用（disable_mlock=trueなら無効化される）
+      - IPC_LOCK
     networks:
       - arkstream_net
     depends_on:
-      - consul                           # consulが先に起動するように
+      - consul
     environment:
       VAULT_ADDR: "https://localhost:8200"
 
@@ -26,7 +26,9 @@ services:
     container_name: ark_consul
     restart: unless-stopped
     ports:
-      - "8500:8500"   # ConsulのUI/API
+      - "8500:8500"
+    volumes:
+      - consul_data:/consul/data    # ← これを追加
     networks:
       - arkstream_net
 
@@ -72,3 +74,6 @@ services:
 networks:
   arkstream_net:
     driver: bridge
+
+volumes:
+  consul_data:   # ← 永続化ボリュームを定義

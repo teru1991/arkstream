@@ -42,9 +42,8 @@ jobs:
       - name: 📤 Fetch Secrets for Docker Build
         env:
           VAULT_ADDR: ${{ secrets.ARKSTREAM_VAULT_ADDR }}
+          VAULT_TOKEN: ${{ env.VAULT_TOKEN }}
         run: |
-          export VAULT_TOKEN="$VAULT_TOKEN"
-
           vault kv get -format=json secret/arkstream/production > secret.json
 
           POSTGRES_PASSWORD=$(jq -r ".data.data.POSTGRES_PASSWORD" secret.json)
@@ -63,6 +62,10 @@ jobs:
         run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
       - name: 🐳 Build Docker image
+        env:
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          MONGO_URI: ${{ env.MONGO_URI }}
+          KAFKA_BROKER: ${{ env.KAFKA_BROKER }}
         run: |
           docker build \
             --build-arg POSTGRES_PASSWORD=$POSTGRES_PASSWORD \

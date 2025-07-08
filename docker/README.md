@@ -33,8 +33,6 @@ SecretIDの定期ローテーション
 本番環境(Docker Compose)
 
 powershell
-コピーする
-編集する
 cd docker
 docker-compose up -d
 コンテナ群:
@@ -50,17 +48,11 @@ VaultはHTTPSでhttps://localhost:8200に起動します。
 🔑 初期化 & アンシール
 Vaultコンテナを初回起動したときのみ以下を行います:
 
-powershell
-コピーする
-編集する
 docker exec -it ark_vault vault operator init
 表示される Unseal Keys と Initial Root Token を安全に保管。
 
 アンシール(起動時に1回)
 
-powershell
-コピーする
-編集する
 docker exec -it ark_vault vault operator unseal
 📝 AppRole設定
 本番用 AppRoleは以下を使用:
@@ -73,17 +65,11 @@ arkstream-release	0a55db22-d48f-0a58-c167-440cb610663d	0fc601a6-b946-4dee-bc2b-c
 arkstream-readonly	8c6937e2-8f57-f4c8-fbc4-e9492bf5f7cb	bd31a8f5-1704-e47a-e1bc-a469d723d5ab
 
 🛠️ シークレット管理コマンド
-シークレット投入
-bash
-コピーする
-編集する
+
 vault kv put secret/arkstream/db/credentials \
 username="postgres" \
 password="your_secure_password"
-シークレット取得
-bash
-コピーする
-編集する
+
 vault kv get secret/arkstream/db/credentials
 ⚙️ GitHub Actions CI/CD
 🚀 主なWorkflow
@@ -98,9 +84,7 @@ Rotate Vault SecretID	SecretIDローテーション	定期（週1）, 手動
 🛡️ Secrets
 GitHubに以下を登録済み:
 
-ini
-コピーする
-編集する
+
 ARKSTREAM_VAULT_ADDR=https://127.0.0.1:8200
 ARKSTREAM_VAULT_ROLE_ID=<本番RoleID>
 ARKSTREAM_VAULT_SECRET_ID=<本番SecretID>
@@ -114,9 +98,7 @@ Rotate Vault SecretID が週1で自動実行。
 手動で実行も可能。
 
 ローテーション手動手順 (PowerShell)
-powershell
-コピーする
-編集する
+
 vault write -format=json auth/approle/role/arkstream-db/secret-id
 出力結果の secret_id をGitHub Secretsに反映。
 
@@ -155,9 +137,7 @@ api_key="binance_api_key_value" \
 secret_key="binance_secret_key_value"
 取得テスト
 
-bash
-コピーする
-編集する
+
 vault kv get secret/arkstream/binance
 📌 2. 別の取引所を追加 (Bybit)
 🔹 例：Bybit
