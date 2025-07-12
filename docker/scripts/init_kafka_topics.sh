@@ -2,7 +2,7 @@
 
 TOPICS=("tick_data" "order_book" "trade_log")
 BROKER="localhost:9092"
-KAFKA_CONTAINER="arkstream-kafka"
+KAFKA_CONTAINER="profinaut-kafka"
 
 for topic in "${TOPICS[@]}"
 do

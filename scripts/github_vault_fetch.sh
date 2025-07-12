@@ -12,5 +12,5 @@ jobs:
       - name: Get Binance credentials from Vault
         run: |
           curl -s --header "X-Vault-Token: $VAULT_TOKEN" \
-            $VAULT_ADDR/v1/secret/data/arkstream/binance_test \
+            $VAULT_ADDR/v1/secret/data/profinaut/binance_test \
           | jq -r '.data.data | to_entries[] | "\(.key)=\(.value)"' >> $GITHUB_ENV

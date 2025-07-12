@@ -17,7 +17,7 @@ async fn test_vault_secret_fetch() {
     let vault_addr = std::env::var("VAULT_ADDR").expect("VAULT_ADDR not set");
     let vault_token = std::env::var("VAULT_TOKEN").expect("VAULT_TOKEN not set");
 
-    let url = format!("{}/v1/secret/data/arkstream/binance_test", vault_addr);
+    let url = format!("{}/v1/secret/data/profinaut/binance_test", vault_addr);
 
     let client = Client::new();
     let res = client.get(&url).header("X-Vault-Token", vault_token).send().await.unwrap();

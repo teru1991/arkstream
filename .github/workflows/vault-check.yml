@@ -16,11 +16,11 @@ jobs:
       - name: Login to Vault
         id: vault-login
         env:
-          VAULT_ADDR: ${{ secrets.ARKSTREAM_VAULT_ADDR }}
+          VAULT_ADDR: ${{ secrets.PROFINAUT_VAULT_ADDR }}
         run: |
           vault write -format=json auth/approle/login \
-            role_id="${{ secrets.ARKSTREAM_VAULT_ROLE_ID }}" \
-            secret_id="${{ secrets.ARKSTREAM_VAULT_SECRET_ID }}" > login.json
+            role_id="${{ secrets.PROFINAUT_VAULT_ROLE_ID }}" \
+            secret_id="${{ secrets.PROFINAUT_VAULT_SECRET_ID }}" > login.json
 
           VAULT_TOKEN=$(jq -r ".auth.client_token" login.json)
           echo "::add-mask::$VAULT_TOKEN"
@@ -28,13 +28,13 @@ jobs:
 
       - name: Verify Secrets
         env:
-          VAULT_ADDR: ${{ secrets.ARKSTREAM_VAULT_ADDR }}
+          VAULT_ADDR: ${{ secrets.PROFINAUT_VAULT_ADDR }}
           VAULT_TOKEN: ${{ env.VAULT_TOKEN }}
         run: |
           set -e
           keys=("POSTGRES_PASSWORD" "MONGO_URI" "KAFKA_BROKER")
           for key in "${keys[@]}"; do
-            if ! vault kv get -mount=secret -field="$key" arkstream/production &>/dev/null; then
+            if ! vault kv get -mount=secret -field="$key" profinaut/production &>/dev/null; then
               echo "❌ Missing: $key"
               exit 1
             else

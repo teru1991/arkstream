@@ -70,7 +70,7 @@ fi
 # ==========================
 # 🔐 シークレット投入
 # ==========================
-VAULT_PATH="secret/arkstream"
+VAULT_PATH="secret/profinaut"
 
 put_secret() {
   local path=$1
@@ -81,25 +81,25 @@ put_secret() {
 
 # Binance
 put_secret binance \
-  ARKSTREAM_BINANCE_API_KEY="${BINANCE_API_KEY:-your_binance_api_key}" \
-  ARKSTREAM_BINANCE_SECRET_KEY="${BINANCE_SECRET_KEY:-your_binance_secret_key}"
+  PROFINAUT_BINANCE_API_KEY="${BINANCE_API_KEY:-your_binance_api_key}" \
+  PROFINAUT_BINANCE_SECRET_KEY="${BINANCE_SECRET_KEY:-your_binance_secret_key}"
 
 # OKX
 put_secret okx \
-  ARKSTREAM_OKX_API_KEY="${OKX_API_KEY:-your_okx_api_key}" \
-  ARKSTREAM_OKX_SECRET_KEY="${OKX_SECRET_KEY:-your_okx_secret_key}" \
-  ARKSTREAM_OKX_PASSPHRASE="${OKX_PASSPHRASE:-your_passphrase}"
+  PROFINAUT_OKX_API_KEY="${OKX_API_KEY:-your_okx_api_key}" \
+  PROFINAUT_OKX_SECRET_KEY="${OKX_SECRET_KEY:-your_okx_secret_key}" \
+  PROFINAUT_OKX_PASSPHRASE="${OKX_PASSPHRASE:-your_passphrase}"
 
 # Coinbase
 put_secret coinbase \
-  ARKSTREAM_COINBASE_API_KEY="${COINBASE_API_KEY:-your_coinbase_api_key}" \
-  ARKSTREAM_COINBASE_SECRET_KEY="${COINBASE_SECRET_KEY:-your_coinbase_secret_key}"
+  PROFINAUT_COINBASE_API_KEY="${COINBASE_API_KEY:-your_coinbase_api_key}" \
+  PROFINAUT_COINBASE_SECRET_KEY="${COINBASE_SECRET_KEY:-your_coinbase_secret_key}"
 
 # PostgreSQL
 put_secret postgres \
-  POSTGRES_USER="${POSTGRES_USER:-arkstream}" \
+  POSTGRES_USER="${POSTGRES_USER:-profinaut}" \
   POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-changeme}" \
-  DATABASE_URL="postgresql://${POSTGRES_USER:-arkstream}:${POSTGRES_PASSWORD:-changeme}@localhost:5432/market_data"
+  DATABASE_URL="postgresql://${POSTGRES_USER:-profinaut}:${POSTGRES_PASSWORD:-changeme}@localhost:5432/market_data"
 
 # MongoDB
 put_secret mongodb \
@@ -107,6 +107,6 @@ put_secret mongodb \
 
 # Discord Webhook
 put_secret discord \
-  ARKSTREAM_DISCORD_WEBHOOK_URL="${DISCORD_WEBHOOK_URL:-https://discord.com/api/webhooks/xxxxx/yyyyy}"
+  PROFINAUT_DISCORD_WEBHOOK_URL="${DISCORD_WEBHOOK_URL:-https://discord.com/api/webhooks/xxxxx/yyyyy}"
 
 echo "✅ すべてのシークレットが Vault に投入されました"

@@ -2,18 +2,18 @@
 set -e
 
 # Vault からパスワード取得
-# export ARK_DB_PASSWORD=$(vault kv get -field=password secret/arkstream/mongo)
+# export PROFINAUT_DB_PASSWORD=$(vault kv get -field=password secret/profinaut/mongo)
 
-export ARK_DB_PASSWORD="${ARK_DB_PASSWORD:-changeme}"
+export PROFINAUT_DB_PASSWORD="${PROFINAUT_DB_PASSWORD:-changeme}"
 
 echo "🚀 MongoDB 初期化開始"
 
-docker exec -i arkstream_mongo mongosh <<EOF
+docker exec -i profinaut_mongo mongosh <<EOF
 use admin
 db.createUser({
-  user: "arkuser",
-  pwd: "${ARK_DB_PASSWORD}",
-  roles: [{ role: "readWrite", db: "arkstream" }]
+  user: "profinautuser",
+  pwd: "${PROFINAUT_DB_PASSWORD}",
+  roles: [{ role: "readWrite", db: "profinaut" }]
 })
 EOF
 

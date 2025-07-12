@@ -3,7 +3,7 @@ version: '3.8'
 services:
   prometheus:
     image: prom/prometheus:latest
-    container_name: arkstream-prometheus
+    container_name: profinaut-prometheus
     ports:
       - "9090:9090"
     volumes:
@@ -15,7 +15,7 @@ services:
 
   grafana:
     image: grafana/grafana:latest
-    container_name: arkstream-grafana
+    container_name: profinaut-grafana
     ports:
       - "3000:3000"
     environment:
@@ -28,7 +28,7 @@ services:
 
   loki:
     image: grafana/loki:2.9.3
-    container_name: arkstream-loki
+    container_name: profinaut-loki
     ports:
       - "3100:3100"
     volumes:

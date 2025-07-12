@@ -19,7 +19,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let vault_token = std::env::var("VAULT_TOKEN").unwrap_or_else(|_| "root".to_string());
 
     // ✅ Clippy推奨: インラインフォーマット
-    let url = format!("{vault_addr}/v1/secret/data/arkstream/binance_test");
+    let url = format!("{vault_addr}/v1/secret/data/profinaut/binance_test");
 
     let client = Client::new();
     let res = client.get(&url).header("X-Vault-Token", vault_token).send().await?;

@@ -24,24 +24,24 @@ jobs:
         run: |
           cargo build --release
           mkdir -p release_assets
-          cp target/release/arkstream release_assets/
+          cp target/release/profinaut release_assets/
 
       - name: 🔐 Load GPG signing key from Vault
         env:
-          VAULT_ADDR: ${{ secrets.ARKSTREAM_VAULT_ADDR }}
-          VAULT_TOKEN: ${{ secrets.ARKSTREAM_VAULT_TOKEN }}
+          VAULT_ADDR: ${{ secrets.PROFINAUT_VAULT_ADDR }}
+          VAULT_TOKEN: ${{ secrets.PROFINAUT_VAULT_TOKEN }}
         run: |
           echo "🔐 Retrieving GPG key from Vault..."
-          SIGNING_KEY=$(vault kv get -field=SIGNING_KEY secret/arkstream/release)
+          SIGNING_KEY=$(vault kv get -field=SIGNING_KEY secret/profinaut/release)
           echo "$SIGNING_KEY" > signingkey.asc
           gpg --batch --import signingkey.asc
 
       - name: 🔏 Sign binary
         run: |
           gpg --batch --yes --armor --detach-sign \
-            -o release_assets/arkstream.asc release_assets/arkstream
+            -o release_assets/profinaut.asc release_assets/profinaut
       - name: Upload Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            release_assets/arkstream
+            release_assets/profinaut

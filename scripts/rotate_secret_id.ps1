@@ -1,5 +1,5 @@
 param(
-    [string]$RoleName = "arkstream-db"
+    [string]$RoleName = "profinaut-db"
 )
 
 # Vaultアドレスとtokenを読み込む
@@ -21,8 +21,8 @@ if ($env:VAULT_MODE -eq "prod") {
 $env:VAULT_ADDR = $vaultAddr
 
 # ログイン (AppRole)
-$roleIdVar = "ARKSTREAM_" + ($RoleName -replace "-", "_").ToUpper() + "_ROLE_ID"
-$secretIdVar = "ARKSTREAM_" + ($RoleName -replace "-", "_").ToUpper() + "_SECRET_ID"
+$roleIdVar = "PROFINAUT_" + ($RoleName -replace "-", "_").ToUpper() + "_ROLE_ID"
+$secretIdVar = "PROFINAUT_" + ($RoleName -replace "-", "_").ToUpper() + "_SECRET_ID"
 
 $roleId = [System.Environment]::GetEnvironmentVariable($roleIdVar)
 $secretId = [System.Environment]::GetEnvironmentVariable($secretIdVar)

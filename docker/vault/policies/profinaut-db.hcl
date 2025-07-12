@@ -1,9 +1,9 @@
 # KV v2 metadata
-path "secret/metadata/arkstream/db/*" {
+path "secret/metadata/profinaut/db/*" {
   capabilities = ["list"]
 }
 
 # KV v2 data
-path "secret/data/arkstream/db/*" {
+path "secret/data/profinaut/db/*" {
   capabilities = ["read"]
 }

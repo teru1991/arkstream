@@ -1,6 +1,6 @@
-# 📘 ArkStream - 開発環境セットアップ手順
+# 📘 Profinaut - 開発環境セットアップ手順
 
-**ArkStream** は、高速なデータ収集・処理・取引実行を実現する統合型トレーディングシステムです。  
+**Profinaut** は、高速なデータ収集・処理・取引実行を実現する統合型トレーディングシステムです。  
 本プロジェクトの開発を開始するための環境構築手順を以下にまとめます。
 
 ---
@@ -8,7 +8,7 @@
 ## 📁 ディレクトリ構成（抜粋）
 
 ```
-arkstream/
+profinaut/
 ├── config/                  # Python依存パッケージ管理
 │   └── requirements.txt
 ├── docker/                  # Docker構成ファイルとスクリプト
@@ -47,8 +47,8 @@ arkstream/
 ### ① リポジトリをクローン
 
 ```bash
-git clone git@github.com:teru1991/arkstream.git
-cd arkstream
+git clone git@github.com:teru1991/profinaut.git
+cd profinaut
 ```
 
 ---

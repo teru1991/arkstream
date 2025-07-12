@@ -3,7 +3,7 @@ version: "3.9"
 services:
   vault:
     image: vault:1.13.3
-    container_name: ark_vault
+    container_name: profinaut_vault
     restart: unless-stopped
     command: server
     ports:
@@ -15,7 +15,7 @@ services:
     cap_add:
       - IPC_LOCK
     networks:
-      - arkstream_net
+      - profinaut_net
     depends_on:
       - consul
     environment:
@@ -23,29 +23,29 @@ services:
 
   consul:
     image: consul:1.15.4
-    container_name: ark_consul
+    container_name: profinaut_consul
     restart: unless-stopped
     ports:
       - "8500:8500"
     volumes:
       - consul_data:/consul/data    # ← これを追加
     networks:
-      - arkstream_net
+      - profinaut_net
 
   mongo:
     image: mongo:6
-    container_name: ark_mongo
+    container_name: profinaut_mongo
     restart: unless-stopped
     ports:
       - "127.0.0.1:27017:27017"
     volumes:
       - ./Storage/mongo/data:/data/db
     networks:
-      - arkstream_net
+      - profinaut_net
 
   kafka:
     image: bitnami/kafka:3.5
-    container_name: ark_kafka
+    container_name: profinaut_kafka
     restart: unless-stopped
     ports:
       - "9092:9092"
@@ -58,21 +58,21 @@ services:
     volumes:
       - ./Storage/kafka/data:/var/lib/kafka/data
     networks:
-      - arkstream_net
+      - profinaut_net
 
   zookeeper:
     image: bitnami/zookeeper:latest
-    container_name: ark_zookeeper
+    container_name: profinaut_zookeeper
     restart: unless-stopped
     ports:
       - "2181:2181"
     environment:
       ALLOW_ANONYMOUS_LOGIN: "yes"
     networks:
-      - arkstream_net
+      - profinaut_net
 
 networks:
-  arkstream_net:
+  profinaut_net:
     driver: bridge
 
 volumes:

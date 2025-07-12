@@ -28,12 +28,12 @@ fi
 echo "✅ Vault に接続成功 (devモード)"
 
 # 🔐 シークレット投入
-vault kv put secret/arkstream/binance_test \
+vault kv put secret/profinaut/binance_test \
   BINANCE_KEYS="$BINANCE_KEYS" \
   BINANCE_SECRETS="$BINANCE_SECRETS"
 
-echo "✅ テストデータ投入完了: secret/arkstream/binance_test"
+echo "✅ テストデータ投入完了: secret/profinaut/binance_test"
 
 # 📤 データ取得テスト
 echo "🔎 取得結果:"
-vault kv get secret/arkstream/binance_test
+vault kv get secret/profinaut/binance_test

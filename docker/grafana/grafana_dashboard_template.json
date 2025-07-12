@@ -1,7 +1,7 @@
 {
   "dashboard": {
     "id": null,
-    "title": "ArkStream System Monitoring",
+    "title": "Profinaut System Monitoring",
     "timezone": "browser",
     "panels": [
       {

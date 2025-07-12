@@ -1,5 +1,5 @@
 # ========================================
-# 📦 ArkStream - Makefile (Vault統合対応版)
+# 📦 Profinaut - Makefile (Vault統合対応版)
 # ========================================
 
 .PHONY: hello
@@ -123,7 +123,7 @@ venv:
 # 🔐 Vault 操作（分割パス & Policy対応）
 # ========================================
 
-VAULT_CONTAINER := $(if $(filter $(MODE),dev),arkstream-vault-dev,arkstream-vault)
+VAULT_CONTAINER := $(if $(filter $(MODE),dev),profinaut-vault-dev,profinaut-vault)
 
 .PHONY: vault-up
 vault-up:
@@ -154,9 +154,9 @@ vault-migrate:
 .PHONY: vault-policy-write
 vault-policy-write:
 	@echo "🛡️ Vault Policy を登録します"
-	vault policy write arkstream-db vault/policies/arkstream-db.hcl
-	vault policy write arkstream-kafka vault/policies/arkstream-kafka.hcl
-	vault policy write arkstream-release vault/policies/arkstream-release.hcl
+	vault policy write profinaut-db vault/policies/profinaut-db.hcl
+	vault policy write profinaut-kafka vault/policies/profinaut-kafka.hcl
+	vault policy write profinaut-release vault/policies/profinaut-release.hcl
 
 # ========================================
 # ♻️ Docker Cleanup
@@ -231,7 +231,7 @@ frontend-install:
 
 .PHONY: help
 help:
-	@echo "\n📘 ArkStream Makefile ヘルプ"
+	@echo "\n📘 Profinaut Makefile ヘルプ"
 	@echo "---------------------------------------------"
 	@grep -E '^\.PHONY: [a-zA-Z0-9_-]+.*$$' Makefile | sed 's/\.PHONY: //' | tr ' ' '\n' | while read target; do \
 		desc=$$(grep -A 1 "^\.PHONY: $$target" Makefile | tail -n1 | sed -E 's/^\s*@?echo\s+\"(.*)\"/\1/' | sed 's/@echo \"//;s/\"//'); \

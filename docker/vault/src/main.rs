@@ -18,7 +18,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::env::var("VAULT_ADDR").unwrap_or_else(|_| "http://127.0.0.1:8200".to_string());
     let vault_token = std::env::var("VAULT_TOKEN").unwrap_or_else(|_| "root".to_string());
 
-    let url = format!("{}/v1/secret/data/arkstream/binance_test", vault_addr);
+    let url = format!("{}/v1/secret/data/profinaut/binance_test", vault_addr);
 
     let client = Client::new();
     let res = client.get(&url).header("X-Vault-Token", vault_token).send().await?;
