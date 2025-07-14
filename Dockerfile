@@ -36,3 +36,4 @@ ENV KAFKA_BROKER=${KAFKA_BROKER}
 
 # デフォルトCMD
 CMD ["vault_test"]
+
