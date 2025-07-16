@@ -7,7 +7,7 @@ listener "tcp" {
   cluster_address  = "127.0.0.1:8211"
   tls_cert_file    = "/vault/cert/vault-cert.pem"
   tls_key_file     = "/vault/cert/vault-key.pem"
-  tls_disable      = 0
+  tls_disable      = false
   tls_min_version  = "tls12"
 }
 
@@ -18,12 +18,8 @@ storage "consul" {
 }
 
 # 🌐 APIとUIの有効化
-api_addr = "https://profinaut.studiokeke.com"
-cluster_addr = "https://127.0.0.1:8211"
-ui = true
+api_addr = "https://vault.profinaut.studiokeke.com"
 
-# 🪵 Auditログ（ログ永続化用）
-audit {
-  file_path = "/vault/log/audit.log"
-  log_raw   = true
-}
+cluster_addr = "https://vault.profinaut.studiokeke.com"
+ui = true
+log_level = "info

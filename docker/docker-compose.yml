@@ -1,8 +1,9 @@
 version: "3.9"
 
 services:
+  # ✅ Vault（Secrets管理）
   vault:
-    build: .
+    image: hashicorp/vault:1.13.3
     container_name: profinaut_vault
     ports:
       - "127.0.0.1:8200:8200"
@@ -13,14 +14,16 @@ services:
       - ./vault/cert:/vault/cert:ro
       - ./vault/log:/vault/log
       - ./vault/backup:/vault/backup
-    environment:
-      VAULT_LOCAL_CONFIG: /vault/config/vault.hcl
+    command: vault server -config=/vault/config/vault.hcl
     depends_on:
       - consul
     networks:
       - docker_profinaut_net
     restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
 
+  # ✅ Consul（Vaultのバックエンド）
   consul:
     image: consul:1.15.4
     container_name: profinaut_consul
@@ -31,6 +34,7 @@ services:
       - docker_profinaut_net
     restart: unless-stopped
 
+  # ✅ MongoDB
   mongo:
     image: mongo:6
     container_name: profinaut_mongo
@@ -43,6 +47,7 @@ services:
       - docker_profinaut_net
     restart: unless-stopped
 
+  # ✅ ZooKeeper
   zookeeper:
     image: bitnami/zookeeper:latest
     container_name: profinaut_zookeeper
@@ -54,6 +59,7 @@ services:
       - docker_profinaut_net
     restart: unless-stopped
 
+  # ✅ Kafka（PLAINTEXT設定）
   kafka:
     image: bitnami/kafka:3.5
     container_name: profinaut_kafka
@@ -73,6 +79,7 @@ services:
       - zookeeper
     restart: unless-stopped
 
+  # ✅ Kafka UI
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
     container_name: profinaut_kafka_ui
@@ -87,6 +94,7 @@ services:
       - kafka
     restart: unless-stopped
 
+  # ✅ Prometheus（構成ファイル必須）
   prometheus:
     image: prom/prometheus:latest
     container_name: profinaut_prometheus
@@ -98,6 +106,7 @@ services:
       - docker_profinaut_net
     restart: unless-stopped
 
+  # ✅ Grafana（初回は空ディレクトリでOK）
   grafana:
     image: grafana/grafana:latest
     container_name: profinaut_grafana
@@ -109,31 +118,34 @@ services:
       - docker_profinaut_net
     restart: unless-stopped
 
+  # ✅ Loki（設定ファイル必要）
   loki:
     image: grafana/loki:2.9.2
     container_name: profinaut_loki
     command: -config.file=/etc/loki/config.yml
     volumes:
-      - ./monitoring/loki:/etc/loki
+      - ./monitoring/loki/config.yml:/etc/loki/config.yml:ro
     ports:
       - "3100:3100"
     networks:
       - docker_profinaut_net
     restart: unless-stopped
 
+  # ✅ Alertmanager（設定ファイル必要）
   alertmanager:
     image: prom/alertmanager:latest
     container_name: profinaut_alertmanager
     ports:
       - "9093:9093"
     volumes:
-      - ./monitoring/alertmanager:/etc/alertmanager
+      - ./monitoring/alertmanager/config.yml:/etc/alertmanager/config.yml:ro
     networks:
       - docker_profinaut_net
     restart: unless-stopped
 
+  # ✅ Vault Exporter（修正済みイメージ）
   vault-exporter:
-    image: tanium/vault-exporter
+    image: prometheuscommunity/vault_exporter
     container_name: profinaut_vault_exporter
     environment:
       VAULT_ADDR: http://vault:8200
@@ -145,6 +157,7 @@ services:
       - vault
     restart: unless-stopped
 
+  # ✅ Kafka Exporter
   kafka-exporter:
     image: danielqsj/kafka-exporter:latest
     container_name: profinaut_kafka_exporter
@@ -158,15 +171,18 @@ services:
       - kafka
     restart: unless-stopped
 
+  # ✅ Watchtower（自動更新）
   watchtower:
     image: containrrr/watchtower
     container_name: profinaut_watchtower
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     command: --interval 300 --label-enable
-    restart: unless-stopped
     networks:
       - docker_profinaut_net
+    restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
 
 networks:
   docker_profinaut_net:
