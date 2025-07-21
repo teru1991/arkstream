@@ -1,192 +1,109 @@
-version: "3.9"
+version: "3.8"
 
 services:
-  # ✅ Vault（Secrets管理）
   vault:
     image: hashicorp/vault:1.13.3
-    container_name: profinaut_vault
+    container_name: profinaut-vault
     ports:
-      - "127.0.0.1:8200:8200"
+      - "8200:8200"
     cap_add:
       - IPC_LOCK
     volumes:
-      - ./vault/config:/vault/config:ro
-      - ./vault/cert:/vault/cert:ro
+      - ./vault/config/vault.hcl:/vault/config/vault.hcl
+      - ./vault/data:/vault/data
+      - ./vault/cert:/vault/cert
       - ./vault/log:/vault/log
-      - ./vault/backup:/vault/backup
-    command: vault server -config=/vault/config/vault.hcl
-    depends_on:
-      - consul
-    networks:
-      - docker_profinaut_net
-    restart: unless-stopped
-    labels:
-      - "com.centurylinklabs.watchtower.enable=true"
+    environment:
+      VAULT_ADDR: "http://0.0.0.0:8200"
+      VAULT_LOCAL_CONFIG: '{"backend":{"file":{"path":"/vault/data"}},"listener":{"tcp":{"address":"0.0.0.0:8200","tls_disable":1}}}'
+    command: "server"
 
-  # ✅ Consul（Vaultのバックエンド）
-  consul:
-    image: consul:1.15.4
-    container_name: profinaut_consul
-    command: agent -server -bootstrap-expect=1 -ui=false -client=0.0.0.0 -data-dir=/consul/data
-    volumes:
-      - consul_data:/consul/data
-    networks:
-      - docker_profinaut_net
-    restart: unless-stopped
-
-  # ✅ MongoDB
   mongo:
-    image: mongo:6
-    container_name: profinaut_mongo
+    image: mongo:6.0
+    container_name: profinaut-mongo
     ports:
-      - "127.0.0.1:27018:27017"
+      - "27017:27017"
     volumes:
       - ./storage/mongo/data:/data/db
-      - ./storage/mongo/dump:/data/dump
-    networks:
-      - docker_profinaut_net
-    restart: unless-stopped
 
-  # ✅ ZooKeeper
-  zookeeper:
-    image: bitnami/zookeeper:latest
-    container_name: profinaut_zookeeper
-    ports:
-      - "2181:2181"
+  postgres:
+    image: postgres:15
+    container_name: profinaut-postgres
     environment:
-      ALLOW_ANONYMOUS_LOGIN: "yes"
-    networks:
-      - docker_profinaut_net
-    restart: unless-stopped
+      POSTGRES_USER: profinaut
+      POSTGRES_PASSWORD: profinautpass
+      POSTGRES_DB: profinaut_db
+    volumes:
+      - ./storage/postgres/data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
 
-  # ✅ Kafka（PLAINTEXT設定）
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    container_name: profinaut-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
   kafka:
-    image: bitnami/kafka:3.5
-    container_name: profinaut_kafka
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: profinaut-kafka
+    depends_on:
+      - zookeeper
     ports:
       - "9092:9092"
     environment:
       KAFKA_BROKER_ID: 1
-      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092
-      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
-      KAFKA_CFG_ZOOKEEPER_CONNECT: zookeeper:2181
-      ALLOW_PLAINTEXT_LISTENER: "yes"
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
     volumes:
       - ./storage/kafka/data:/var/lib/kafka/data
-    networks:
-      - docker_profinaut_net
-    depends_on:
-      - zookeeper
-    restart: unless-stopped
 
-  # ✅ Kafka UI
-  kafka-ui:
-    image: provectuslabs/kafka-ui:latest
-    container_name: profinaut_kafka_ui
-    ports:
-      - "8080:8080"
-    environment:
-      KAFKA_CLUSTERS_0_NAME: profinaut
-      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
-    networks:
-      - docker_profinaut_net
-    depends_on:
-      - kafka
-    restart: unless-stopped
-
-  # ✅ Prometheus（構成ファイル必須）
   prometheus:
     image: prom/prometheus:latest
-    container_name: profinaut_prometheus
-    volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    container_name: profinaut-prometheus
     ports:
       - "9090:9090"
-    networks:
-      - docker_profinaut_net
-    restart: unless-stopped
+    volumes:
+      - ./docker/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
 
-  # ✅ Grafana（初回は空ディレクトリでOK）
   grafana:
     image: grafana/grafana:latest
-    container_name: profinaut_grafana
+    container_name: profinaut-grafana
     ports:
-      - "3000:3000"
+      - "3001:3000"
+    depends_on:
+      - prometheus
     volumes:
-      - ./monitoring/grafana:/var/lib/grafana
-    networks:
-      - docker_profinaut_net
-    restart: unless-stopped
+      - ./docker/grafana/grafana_dashboard_template.json:/etc/grafana/provisioning/dashboards/dashboard.json
 
-  # ✅ Loki（設定ファイル必要）
   loki:
-    image: grafana/loki:2.9.2
-    container_name: profinaut_loki
-    command: -config.file=/etc/loki/config.yml
-    volumes:
-      - ./monitoring/loki/config.yml:/etc/loki/config.yml:ro
+    image: grafana/loki:2.9.0
+    container_name: profinaut-loki
     ports:
       - "3100:3100"
-    networks:
-      - docker_profinaut_net
-    restart: unless-stopped
-
-  # ✅ Alertmanager（設定ファイル必要）
-  alertmanager:
-    image: prom/alertmanager:latest
-    container_name: profinaut_alertmanager
-    ports:
-      - "9093:9093"
+    command: -config.file=/etc/loki/loki-config.yml
     volumes:
-      - ./monitoring/alertmanager/config.yml:/etc/alertmanager/config.yml:ro
-    networks:
-      - docker_profinaut_net
-    restart: unless-stopped
+      - ./docker/monitoring/loki-config.yml:/etc/loki/loki-config.yml
 
-  # ✅ Vault Exporter（修正済みイメージ）
-  vault-exporter:
-    image: prometheuscommunity/vault_exporter
-    container_name: profinaut_vault_exporter
+  promtail:
+    image: grafana/promtail:2.9.0
+    container_name: profinaut-promtail
+    volumes:
+      - /var/log:/var/log
+      - ./docker/monitoring/promtail-config.yml:/etc/promtail/promtail-config.yml
+    command: -config.file=/etc/promtail/promtail-config.yml
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: profinaut-frontend
+    ports:
+      - "3000:3000"
     environment:
-      VAULT_ADDR: http://vault:8200
-    ports:
-      - "9102:9102"
-    networks:
-      - docker_profinaut_net
-    depends_on:
-      - vault
+      NODE_ENV: production
     restart: unless-stopped
 
-  # ✅ Kafka Exporter
-  kafka-exporter:
-    image: danielqsj/kafka-exporter:latest
-    container_name: profinaut_kafka_exporter
-    ports:
-      - "9308:9308"
-    command:
-      - "--kafka.server=kafka:9092"
-    networks:
-      - docker_profinaut_net
-    depends_on:
-      - kafka
-    restart: unless-stopped
-
-  # ✅ Watchtower（自動更新）
-  watchtower:
-    image: containrrr/watchtower
-    container_name: profinaut_watchtower
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    command: --interval 300 --label-enable
-    networks:
-      - docker_profinaut_net
-    restart: unless-stopped
-    labels:
-      - "com.centurylinklabs.watchtower.enable=true"
-
-networks:
-  docker_profinaut_net:
-    driver: bridge
-
-volumes:
-  consul_data:
+# 🔒 SecretsとVaultは.env.vaultに切り出して記載
