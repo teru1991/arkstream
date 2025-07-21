@@ -1,11 +1,14 @@
-version: "3.8"
+version: "3.9"
 
 services:
+  # --- 1. Vault（Secrets管理） ---
   vault:
     image: hashicorp/vault:1.13.3
     container_name: profinaut-vault
     ports:
       - "8200:8200"
+    environment:
+      VAULT_ADDR: "http://0.0.0.0:8200"
     cap_add:
       - IPC_LOCK
     volumes:
@@ -13,11 +16,9 @@ services:
       - ./vault/data:/vault/data
       - ./vault/cert:/vault/cert
       - ./vault/log:/vault/log
-    environment:
-      VAULT_ADDR: "http://0.0.0.0:8200"
-      VAULT_LOCAL_CONFIG: '{"backend":{"file":{"path":"/vault/data"}},"listener":{"tcp":{"address":"0.0.0.0:8200","tls_disable":1}}}'
     command: "server"
 
+  # --- 2. MongoDB（構造化DB） ---
   mongo:
     image: mongo:6.0
     container_name: profinaut-mongo
@@ -26,6 +27,7 @@ services:
     volumes:
       - ./storage/mongo/data:/data/db
 
+  # --- 3. PostgreSQL（正規化DB） ---
   postgres:
     image: postgres:15
     container_name: profinaut-postgres
@@ -33,11 +35,12 @@ services:
       POSTGRES_USER: profinaut
       POSTGRES_PASSWORD: profinautpass
       POSTGRES_DB: profinaut_db
-    volumes:
-      - ./storage/postgres/data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+    volumes:
+      - ./storage/postgres/data:/var/lib/postgresql/data
 
+  # --- 4. Kafka + Zookeeper（ストリーム） ---
   zookeeper:
     image: confluentinc/cp-zookeeper:7.4.0
     container_name: profinaut-zookeeper
@@ -60,6 +63,7 @@ services:
     volumes:
       - ./storage/kafka/data:/var/lib/kafka/data
 
+  # --- 5. Prometheus ---
   prometheus:
     image: prom/prometheus:latest
     container_name: profinaut-prometheus
@@ -68,6 +72,7 @@ services:
     volumes:
       - ./docker/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
 
+  # --- 6. Grafana ---
   grafana:
     image: grafana/grafana:latest
     container_name: profinaut-grafana
@@ -78,14 +83,15 @@ services:
     volumes:
       - ./docker/grafana/grafana_dashboard_template.json:/etc/grafana/provisioning/dashboards/dashboard.json
 
+  # --- 7. Loki（構造化ログ） ---
   loki:
     image: grafana/loki:2.9.0
     container_name: profinaut-loki
     ports:
       - "3100:3100"
-    command: -config.file=/etc/loki/loki-config.yml
     volumes:
       - ./docker/monitoring/loki-config.yml:/etc/loki/loki-config.yml
+    command: -config.file=/etc/loki/loki-config.yml
 
   promtail:
     image: grafana/promtail:2.9.0
@@ -95,10 +101,20 @@ services:
       - ./docker/monitoring/promtail-config.yml:/etc/promtail/promtail-config.yml
     command: -config.file=/etc/promtail/promtail-config.yml
 
+  # --- 8. Alertmanager（通知） ---
+  alertmanager:
+    image: prom/alertmanager
+    container_name: profinaut-alertmanager
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./docker/monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+    command: --config.file=/etc/alertmanager/alertmanager.yml
+
+  # --- 9. Frontend（React + Vite + PWA） ---
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
     container_name: profinaut-frontend
     ports:
       - "3000:3000"
@@ -106,4 +122,65 @@ services:
       NODE_ENV: production
     restart: unless-stopped
 
-# 🔒 SecretsとVaultは.env.vaultに切り出して記載
+  # --- 10. Cloudflare Tunnel（Zero Trust外部UI） ---
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: profinaut-cloudflared
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
+
+  # --- 11. Bot Manager（Rust/Actix） ---
+  bot_manager:
+    build:
+      context: ./modules/bot_manager
+    container_name: profinaut-bot-manager
+    environment:
+      RUST_LOG: info
+      VAULT_ADDR: ${VAULT_ADDR}
+      VAULT_ROLE_ID: ${BOT_MANAGER_ROLE_ID}
+      VAULT_SECRET_ID: ${BOT_MANAGER_SECRET_ID}
+    depends_on:
+      - vault
+      - kafka
+      - mongo
+
+  # --- 12. Signal Engine（Python/FastAPI） ---
+  signal_engine:
+    build:
+      context: ./modules/signal_engine
+    container_name: profinaut-signal-engine
+    environment:
+      VAULT_ADDR: ${VAULT_ADDR}
+      VAULT_ROLE_ID: ${SIGNAL_ENGINE_ROLE_ID}
+      VAULT_SECRET_ID: ${SIGNAL_ENGINE_SECRET_ID}
+    depends_on:
+      - vault
+      - kafka
+      - mongo
+
+  # --- 13. Trade Executor（ccxt/Web3） ---
+  trade_executor:
+    build:
+      context: ./modules/trade_executor
+    container_name: profinaut-trade-executor
+    environment:
+      VAULT_ADDR: ${VAULT_ADDR}
+      VAULT_ROLE_ID: ${TRADE_EXECUTOR_ROLE_ID}
+      VAULT_SECRET_ID: ${TRADE_EXECUTOR_SECRET_ID}
+    depends_on:
+      - vault
+      - kafka
+      - mongo
+
+  # --- 14. Kafka 初期トピック作成（起動後1回のみ） ---
+  kafka_init:
+    image: bitnami/kafka:latest
+    container_name: profinaut-kafka-init
+    depends_on:
+      - kafka
+    entrypoint: ["/bin/bash", "-c"]
+    command: >
+      "sleep 10 && /init_kafka_topics.sh"
+    volumes:
+      - ./docker/scripts/init_kafka_topics.sh:/init_kafka_topics.sh
