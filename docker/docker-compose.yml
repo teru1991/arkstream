@@ -12,10 +12,10 @@ services:
     cap_add:
       - IPC_LOCK
     volumes:
-      - ./vault/config/vault.hcl:/vault/config/vault.hcl
-      - ./vault/data:/vault/data
-      - ./vault/cert:/vault/cert
-      - ./vault/log:/vault/log
+      - ./docker/vault/config/vault.hcl:/vault/config/vault.hcl
+      - ./storage/vault/data:/vault/data
+      - ./docker/vault/cert:/vault/cert
+      - ./docker/vault/log:/vault/log
     command: "server"
 
   # --- 2. MongoDB（構造化DB） ---
@@ -130,10 +130,10 @@ services:
     environment:
       TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
 
-  # --- 11. Bot Manager（Rust/Actix） ---
+  # --- 11. 部門① Bot Manager（Rust/Actix） ---
   bot_manager:
     build:
-      context: ./modules/bot_manager
+      context: ./departments/01_bot_manager
     container_name: profinaut-bot-manager
     environment:
       RUST_LOG: info
@@ -145,10 +145,10 @@ services:
       - kafka
       - mongo
 
-  # --- 12. Signal Engine（Python/FastAPI） ---
+  # --- 12. 部門② Signal Generator（Python/FastAPI） ---
   signal_engine:
     build:
-      context: ./modules/signal_engine
+      context: ./departments/02_signal_generator
     container_name: profinaut-signal-engine
     environment:
       VAULT_ADDR: ${VAULT_ADDR}
@@ -159,10 +159,10 @@ services:
       - kafka
       - mongo
 
-  # --- 13. Trade Executor（ccxt/Web3） ---
+  # --- 13. 部門⑤ Trade Executor（ccxt/Web3） ---
   trade_executor:
     build:
-      context: ./modules/trade_executor
+      context: ./departments/05_trade_executor
     container_name: profinaut-trade-executor
     environment:
       VAULT_ADDR: ${VAULT_ADDR}
