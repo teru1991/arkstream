@@ -3,7 +3,7 @@ set -e
 
 echo "🔧 Vault (dev) テスト - Binance テストデータ投入開始"
 
-# 📄 .env.api_binance 読み込み
+# 📄 env.api_binance 読み込み
 ENV_FILE=".env/.env.api_binance"
 if [ ! -f "$ENV_FILE" ]; then
   echo "❌ $ENV_FILE が見つかりません"

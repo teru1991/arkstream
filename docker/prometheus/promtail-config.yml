@@ -1,0 +1,58 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+
+  # 🔧 OSログ（Linux用）※必要に応じてコメントアウト可
+  - job_name: syslog
+    static_configs:
+      - targets: [localhost]
+        labels:
+          job: syslog
+          __path__: /var/log/syslog
+
+  # 📦 Botログ（FastAPIやバックグラウンド処理ログ）
+  - job_name: bot-logs
+    static_configs:
+      - targets: [localhost]
+        labels:
+          job: bot
+          bot_name: bot-a
+          __path__: /app/logs/bot-a.log
+
+      - targets: [localhost]
+        labels:
+          job: bot
+          bot_name: bot-b
+          __path__: /app/logs/bot-b.log
+
+  # 🔐 Vault監査ログ（構成変更、トークン操作等）
+  - job_name: vault-audit
+    static_configs:
+      - targets: [localhost]
+        labels:
+          job: vault
+          __path__: /vault/logs/audit.log
+
+  # 📦 Kafkaログ（BrokerやConsumerログ）
+  - job_name: kafka-logs
+    static_configs:
+      - targets: [localhost]
+        labels:
+          job: kafka
+          __path__: /kafka/logs/*.log
+
+  # 📄 トレード実行ログ
+  - job_name: trade-execution
+    static_configs:
+      - targets: [localhost]
+        labels:
+          job: trade
+          __path__: /app/logs/trade-execution.log

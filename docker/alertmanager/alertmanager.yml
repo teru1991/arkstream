@@ -1,0 +1,59 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  group_by: ['alertname', 'job']
+  group_wait: 10s
+  group_interval: 1m
+  repeat_interval: 30m
+  receiver: 'default-discord'
+
+  routes:
+    - receiver: 'critical-discord'
+      matchers:
+        severity = "critical"
+
+    - receiver: 'vault-discord'
+      matchers:
+        alertname = "VaultSecretExpiry"
+
+    - receiver: 'system-discord'
+      matchers:
+        job = "system_monitor"
+
+receivers:
+
+  - name: 'default-discord'
+    webhook_configs:
+      - url: 'https://webhook.profinaut.studiokeke.com/webhook/system-status'
+        send_resolved: true
+        http_config:
+          follow_redirects: true
+
+  - name: 'critical-discord'
+    webhook_configs:
+      - url: 'https://webhook.profinaut.studiokeke.com/webhook/alerts'
+        send_resolved: true
+        http_config:
+          follow_redirects: true
+
+  - name: 'vault-discord'
+    webhook_configs:
+      - url: 'https://webhook.profinaut.studiokeke.com/webhook/vault-secrets'
+        send_resolved: true
+        http_config:
+          follow_redirects: true
+
+  - name: 'system-discord'
+    webhook_configs:
+      - url: 'https://webhook.profinaut.studiokeke.com/webhook/system-status'
+        send_resolved: true
+        http_config:
+          follow_redirects: true
+
+inhibit_rules:
+  - source_matchers:
+      - severity = "critical"
+    target_matchers:
+      - severity = "warning"
+    equal: ['alertname', 'instance']

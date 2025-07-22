@@ -1,5 +1,5 @@
 [workspace]
 members = [
     "docker/vault",         # ← サブクレート
-    "modules/bot_manager",
+    "departments/01_bot_manager",
 ]

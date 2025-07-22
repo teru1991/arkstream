@@ -1,0 +1,92 @@
+groups:
+  - name: profinaut-alerts
+    rules:
+
+      # 🚨 Vault シークレット有効期限（24時間以内）
+      - alert: VaultSecretExpiry
+        expr: vault_secret_expiry_seconds < 86400
+        for: 1m
+        labels:
+          severity: critical
+          job: vault
+        annotations:
+          summary: "Vault secret expiring soon"
+          description: "Vault secret will expire within 24 hours on {{ $labels.instance }}."
+
+      # ⚠️ Vault シークレットの更新が24時間以上行われていない
+      - alert: VaultSecretUpdateStale
+        expr: time() - vault_last_secret_update_timestamp_seconds > 86400
+        for: 5m
+        labels:
+          severity: warning
+          job: vault
+        annotations:
+          summary: "Vault secret update stale"
+          description: "No Vault secret has been updated in the last 24 hours on {{ $labels.instance }}."
+
+      # 🚨 ディスク容量不足（10%未満）
+      - alert: SystemDiskLow
+        expr: node_filesystem_free_bytes / node_filesystem_size_bytes < 0.10
+        for: 5m
+        labels:
+          severity: warning
+          job: system_monitor
+        annotations:
+          summary: "Disk usage over 90%"
+          description: "Free disk space below 10% on {{ $labels.instance }} ({{ $value | humanizePercentage }})."
+
+      # 🔴 Kafkaブローカー停止
+      - alert: KafkaBrokerDown
+        expr: up{job="kafka"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          job: kafka
+        annotations:
+          summary: "Kafka broker down"
+          description: "Kafka broker {{ $labels.instance }} is unreachable."
+
+      # ⚠️ Kafkaラグが1000超
+      - alert: KafkaConsumerLagHigh
+        expr: kafka_consumergroup_lag > 1000
+        for: 2m
+        labels:
+          severity: warning
+          job: kafka
+        annotations:
+          summary: "High Kafka consumer lag"
+          description: "Consumer group {{ $labels.consumergroup }} has lag of {{ $value }} messages."
+
+      # 🔴 MongoDB インスタンスがダウン
+      - alert: MongoDBDown
+        expr: up{job="mongodb"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          job: mongodb
+        annotations:
+          summary: "MongoDB down"
+          description: "MongoDB instance {{ $labels.instance }} is not responding."
+
+      # ⚠️ Botからのメトリクスが5分以上来ていない
+      - alert: BotMetricsMissing
+        expr: time() - bot_last_metric_timestamp_seconds > 300
+        for: 2m
+        labels:
+          severity: warning
+          job: bot
+        annotations:
+          summary: "Bot metrics missing"
+          description: "No metrics received from Bot {{ $labels.bot_name }} for over 5 minutes."
+
+      # 🔴 トレードエラーが5分間に5件以上発生
+      - alert: TradeErrorSpike
+        expr: increase(trade_error_count[5m]) > 5
+        for: 1m
+        labels:
+          severity: critical
+          job: trade
+        annotations:
+          summary: "Trade error spike"
+          description: "More than 5 trade errors occurred in the last 5 minutes for {{ $labels.bot_name }}."
+

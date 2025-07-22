@@ -3,20 +3,26 @@ version: "3.9"
 services:
   # --- 1. Vault（Secrets管理） ---
   vault:
-    image: hashicorp/vault:1.13.3
+    image: hashicorp/vault:latest
     container_name: profinaut-vault
     ports:
-      - "8200:8200"
+      - "8200:8200"  # Vaultポートを公開
     environment:
-      VAULT_ADDR: "http://0.0.0.0:8200"
+      VAULT_ADDR: "https://vault.profinaut.studiokeke.com:8200"
     cap_add:
-      - IPC_LOCK
+      - IPC_LOCK  # Windows環境で必要な設定
     volumes:
-      - ./docker/vault/config/vault.hcl:/vault/config/vault.hcl
-      - ./storage/vault/data:/vault/data
-      - ./docker/vault/cert:/vault/cert
-      - ./docker/vault/log:/vault/log
-    command: "server"
+      - ./vault/config:/vault/config  # vault.hclのパス
+      - ./vault/cert:/vault/cert    # 証明書のパス
+      - ./storage/vault/data:/vault/data  # 永続化用ストレージ
+      - ./vault/log:/vault/log  # ログ用のボリューム
+    command: vault server -config=/vault/config/vault.hcl  # 設定ファイルを指定
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8200/v1/sys/health"]
+      interval: 30s
+      retries: 5
+      start_period: 10s
+      timeout: 10s
 
   # --- 2. MongoDB（構造化DB） ---
   mongo:
@@ -26,6 +32,9 @@ services:
       - "27017:27017"
     volumes:
       - ./storage/mongo/data:/data/db
+    depends_on:
+      vault:
+        condition: service_healthy
 
   # --- 3. PostgreSQL（正規化DB） ---
   postgres:
@@ -39,6 +48,9 @@ services:
       - "5432:5432"
     volumes:
       - ./storage/postgres/data:/var/lib/postgresql/data
+    depends_on:
+      vault:
+        condition: service_healthy
 
   # --- 4. Kafka + Zookeeper（ストリーム） ---
   zookeeper:
@@ -47,12 +59,16 @@ services:
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
+    depends_on:
+      vault:
+        condition: service_healthy
 
   kafka:
     image: confluentinc/cp-kafka:7.4.0
     container_name: profinaut-kafka
     depends_on:
       - zookeeper
+      - vault
     ports:
       - "9092:9092"
     environment:
@@ -70,7 +86,10 @@ services:
     ports:
       - "9090:9090"
     volumes:
-      - ./docker/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    depends_on:
+      vault:
+        condition: service_healthy
 
   # --- 6. Grafana ---
   grafana:
@@ -80,8 +99,9 @@ services:
       - "3001:3000"
     depends_on:
       - prometheus
+      - vault
     volumes:
-      - ./docker/grafana/grafana_dashboard_template.json:/etc/grafana/provisioning/dashboards/dashboard.json
+      - ./prometheus/grafana_dashboard_template.json:/etc/grafana/provisioning/dashboards/dashboard.json
 
   # --- 7. Loki（構造化ログ） ---
   loki:
@@ -90,16 +110,22 @@ services:
     ports:
       - "3100:3100"
     volumes:
-      - ./docker/monitoring/loki-config.yml:/etc/loki/loki-config.yml
+      - ./prometheus/loki-config.yml:/etc/loki/loki-config.yml
     command: -config.file=/etc/loki/loki-config.yml
+    depends_on:
+      vault:
+        condition: service_healthy
 
   promtail:
     image: grafana/promtail:2.9.0
     container_name: profinaut-promtail
     volumes:
       - /var/log:/var/log
-      - ./docker/monitoring/promtail-config.yml:/etc/promtail/promtail-config.yml
+      - ./prometheus/promtail-config.yml:/etc/promtail/promtail-config.yml
     command: -config.file=/etc/promtail/promtail-config.yml
+    depends_on:
+      vault:
+        condition: service_healthy
 
   # --- 8. Alertmanager（通知） ---
   alertmanager:
@@ -108,19 +134,25 @@ services:
     ports:
       - "9093:9093"
     volumes:
-      - ./docker/monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml
     command: --config.file=/etc/alertmanager/alertmanager.yml
+    depends_on:
+      vault:
+        condition: service_healthy
 
   # --- 9. Frontend（React + Vite + PWA） ---
   frontend:
     build:
-      context: ./frontend
+      context: ../frontend
     container_name: profinaut-frontend
     ports:
       - "3000:3000"
     environment:
       NODE_ENV: production
     restart: unless-stopped
+    depends_on:
+      vault:
+        condition: service_healthy
 
   # --- 10. Cloudflare Tunnel（Zero Trust外部UI） ---
   cloudflared:
@@ -129,11 +161,14 @@ services:
     command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
     environment:
       TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      vault:
+        condition: service_healthy
 
   # --- 11. 部門① Bot Manager（Rust/Actix） ---
   bot_manager:
     build:
-      context: ./departments/01_bot_manager
+      context: ../departments/01_bot_manager
     container_name: profinaut-bot-manager
     environment:
       RUST_LOG: info
@@ -148,7 +183,7 @@ services:
   # --- 12. 部門② Signal Generator（Python/FastAPI） ---
   signal_engine:
     build:
-      context: ./departments/02_signal_generator
+      context: ../departments/02_signal_generator
     container_name: profinaut-signal-engine
     environment:
       VAULT_ADDR: ${VAULT_ADDR}
@@ -162,7 +197,7 @@ services:
   # --- 13. 部門⑤ Trade Executor（ccxt/Web3） ---
   trade_executor:
     build:
-      context: ./departments/05_trade_executor
+      context: ../departments/05_trade_executor
     container_name: profinaut-trade-executor
     environment:
       VAULT_ADDR: ${VAULT_ADDR}
@@ -183,4 +218,4 @@ services:
     command: >
       "sleep 10 && /init_kafka_topics.sh"
     volumes:
-      - ./docker/scripts/init_kafka_topics.sh:/init_kafka_topics.sh
+      - ./scripts/init_kafka_topics.sh:/init_kafka_topics.sh

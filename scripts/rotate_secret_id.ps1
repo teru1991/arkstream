@@ -3,7 +3,7 @@ param(
 )
 
 # Vaultアドレスとtokenを読み込む
-$envFile = "..\.env\.env.vault"
+$envFile = "..\env\env.vault"
 Get-Content $envFile | ForEach-Object {
     if ($_ -match "^(.*?)=(.*)$") {
         [System.Environment]::SetEnvironmentVariable($matches[1], $matches[2])

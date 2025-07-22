@@ -1,0 +1,56 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - "rules/alert.rules.yml"
+
+scrape_configs:
+
+  # Prometheus 自身
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Profinaut Bot群（FastAPI or Custom Exporter）
+  - job_name: 'profinaut-bots'
+    static_configs:
+      - targets:
+          - 'host.docker.internal:9100'   # Bot A
+          - 'host.docker.internal:9200'   # Bot B
+        labels:
+          group: 'bots'
+
+  # Kafka Exporter
+  - job_name: 'kafka'
+    static_configs:
+      - targets: ['host.docker.internal:9308']
+
+  # Node Exporter（システムメトリクス）
+  - job_name: 'node_exporter'
+    static_configs:
+      - targets: ['host.docker.internal:9101']
+
+  # MongoDB Exporter
+  - job_name: 'mongodb'
+    static_configs:
+      - targets: ['host.docker.internal:9217']
+
+  # Vault Exporter
+  - job_name: 'vault'
+    static_configs:
+      - targets: ['host.docker.internal:8223']
+
+  # Trade Execution Metrics
+  - job_name: 'trade'
+    static_configs:
+      - targets: ['host.docker.internal:9400']
+
+  # システム全体を監視する専用Job（異常検知用に統合）
+  - job_name: 'system_monitor'
+    static_configs:
+      - targets:
+          - 'host.docker.internal:9101'  # node_exporter
+          - 'host.docker.internal:9308'  # kafka
+          - 'host.docker.internal:9217'  # mongodb
+          - 'host.docker.internal:8223'  # vault
