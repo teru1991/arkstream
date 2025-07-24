@@ -1,7 +1,7 @@
 version: "3.9"
 
 services:
-  # --- 1. Vault（Secrets管理） ---
+
   vault:
     image: hashicorp/vault:latest
     container_name: profinaut-vault
@@ -21,9 +21,6 @@ services:
       - ./vault/log:/vault/log
     command: vault server -config=/vault/config/vault.hcl
 
-
-
-  # --- 2. MongoDB（構造化DB） ---
   mongo:
     image: mongo:6.0
     container_name: profinaut-mongo
@@ -31,10 +28,8 @@ services:
       - "27017:27017"
     volumes:
       - ./storage/mongo/data:/data/db
-    depends_on:
-      - vault
+    depends_on: [vault]
 
-  # --- 3. PostgreSQL（正規化DB） ---
   postgres:
     image: postgres:15
     container_name: profinaut-postgres
@@ -46,25 +41,19 @@ services:
       - "5432:5432"
     volumes:
       - ./storage/postgres/data:/var/lib/postgresql/data
-    depends_on:
-      - vault
+    depends_on: [vault]
 
-  # --- 4. Kafka + Zookeeper（ストリーム） ---
   zookeeper:
     image: confluentinc/cp-zookeeper:7.4.0
     container_name: profinaut-zookeeper
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
-    depends_on:
-      - vault
+    depends_on: [vault]
 
   kafka:
     image: confluentinc/cp-kafka:7.4.0
     container_name: profinaut-kafka
-    depends_on:
-      - zookeeper
-      - vault
     ports:
       - "9092:9092"
     environment:
@@ -74,37 +63,30 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
     volumes:
       - ./storage/kafka/data:/var/lib/kafka/data
+    depends_on: [zookeeper, vault]
 
-  # --- 5. Prometheus ---
   prometheus:
     image: prom/prometheus:latest
     container_name: profinaut-prometheus
     ports:
       - "9090:9090"
     environment:
-      CLOUDFLARE_SERVICE_TOKEN_ID: ${CLOUDFLARE_SERVICE_TOKEN_ID}
-      CLOUDFLARE_SERVICE_TOKEN_SECRET: ${CLOUDFLARE_SERVICE_TOKEN_SECRET}
+      CF_ACCESS_CLIENT_ID: ${METRICS_CF_ACCESS_CLIENT_ID}
+      CF_ACCESS_CLIENT_SECRET: ${METRICS_CF_ACCESS_CLIENT_SECRET}
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-    depends_on:
-      - vault
+      - ./prometheus/rules:/etc/prometheus/rules
+    depends_on: [vault]
 
-  # --- 6. Grafana ---
   grafana:
     image: grafana/grafana:latest
     container_name: profinaut-grafana
     ports:
       - "3001:3000"
-    environment:
-      CLOUDFLARE_SERVICE_TOKEN_ID: ${CLOUDFLARE_SERVICE_TOKEN_ID}
-      CLOUDFLARE_SERVICE_TOKEN_SECRET: ${CLOUDFLARE_SERVICE_TOKEN_SECRET}
-    depends_on:
-      - prometheus
-      - vault
     volumes:
       - ./prometheus/grafana_dashboard_template.json:/etc/grafana/provisioning/dashboards/dashboard.json
+    depends_on: [prometheus, vault]
 
-  # --- 7. Loki（構造化ログ） ---
   loki:
     image: grafana/loki:2.9.0
     container_name: profinaut-loki
@@ -117,25 +99,21 @@ services:
       - ./storage/loki/boltdb-cache:/loki/boltdb-cache
       - ./storage/loki/rules:/loki/rules
     command: -config.file=/etc/loki/loki-config.yml
-    depends_on:
-      - vault
+    depends_on: [vault]
     restart: unless-stopped
-
 
   promtail:
     image: grafana/promtail:2.9.0
     container_name: profinaut-promtail
     volumes:
-      - /var/log:/var/log                    # OSログ
-      - ./storage/logs:/app/logs            # Botログやトレードログ（例）
-      - ./vault/log:/vault/logs             # Vaultログ
-      - ./kafka/log:/kafka/logs             # Kafkaログ
+      - /var/log:/var/log
+      - ./storage/logs:/app/logs
+      - ./vault/log:/vault/logs
+      - ./kafka/log:/kafka/logs
       - ./prometheus/promtail-config.yml:/etc/promtail/promtail-config.yml:ro
     command: -config.file=/etc/promtail/promtail-config.yml
-    depends_on:
-      - vault
-      - loki
-  # --- 8. Alertmanager（通知） ---
+    depends_on: [vault, loki]
+
   alertmanager:
     image: prom/alertmanager
     container_name: profinaut-alertmanager
@@ -144,10 +122,8 @@ services:
     volumes:
       - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml
     command: --config.file=/etc/alertmanager/alertmanager.yml
-    depends_on:
-      - vault
+    depends_on: [vault]
 
-  # --- 9. Frontend（React + Vite + PWA） ---
   frontend:
     build:
       context: ../frontend
@@ -157,75 +133,55 @@ services:
     environment:
       NODE_ENV: production
     restart: unless-stopped
-    depends_on:
-      - vault
+    depends_on: [vault]
 
-  # --- 10. Cloudflare Tunnel（Zero Trust外部UI） ---
   cloudflared:
     image: cloudflare/cloudflared:latest
     container_name: profinaut-cloudflared
     command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
-    environment:
-      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
-    depends_on:
-      - vault
+    depends_on: [vault]
 
-
-  # --- 11. 部門① Bot Manager（Rust/Actix） ---
   bot_manager:
     build:
       context: ../departments/01_bot_manager
     container_name: profinaut-bot-manager
     environment:
-      CLOUDFLARE_SERVICE_TOKEN_ID: ${CLOUDFLARE_SERVICE_TOKEN_ID}
-      CLOUDFLARE_SERVICE_TOKEN_SECRET: ${CLOUDFLARE_SERVICE_TOKEN_SECRET}
+      CF_ACCESS_CLIENT_ID: ${METRICS_CF_ACCESS_CLIENT_ID}
+      CF_ACCESS_CLIENT_SECRET: ${METRICS_CF_ACCESS_CLIENT_SECRET}
       RUST_LOG: info
       VAULT_ADDR: ${VAULT_ADDR}
       VAULT_ROLE_ID: ${BOT_MANAGER_ROLE_ID}
       VAULT_SECRET_ID: ${BOT_MANAGER_SECRET_ID}
-    depends_on:
-      - vault
-      - kafka
-      - mongo
+    depends_on: [vault, kafka, mongo]
 
-  # --- 12. 部門② Signal Generator（Python/FastAPI） ---
   signal_engine:
     build:
       context: ../departments/02_signal_generator
     container_name: profinaut-signal-engine
     environment:
-      CLOUDFLARE_SERVICE_TOKEN_ID: ${CLOUDFLARE_SERVICE_TOKEN_ID}
-      CLOUDFLARE_SERVICE_TOKEN_SECRET: ${CLOUDFLARE_SERVICE_TOKEN_SECRET}
+      CF_ACCESS_CLIENT_ID: ${SIGNAL_ENGINE_CF_ACCESS_CLIENT_ID}
+      CF_ACCESS_CLIENT_SECRET: ${SIGNAL_ENGINE_CF_ACCESS_CLIENT_SECRET}
       VAULT_ADDR: ${VAULT_ADDR}
       VAULT_ROLE_ID: ${SIGNAL_ENGINE_ROLE_ID}
       VAULT_SECRET_ID: ${SIGNAL_ENGINE_SECRET_ID}
-    depends_on:
-      - vault
-      - kafka
-      - mongo
+    depends_on: [vault, kafka, mongo]
 
-  # --- 13. 部門⑤ Trade Executor（ccxt/Web3） ---
   trade_executor:
     build:
       context: ../departments/05_trade_executor
     container_name: profinaut-trade-executor
     environment:
-      CLOUDFLARE_SERVICE_TOKEN_ID: ${CLOUDFLARE_SERVICE_TOKEN_ID}
-      CLOUDFLARE_SERVICE_TOKEN_SECRET: ${CLOUDFLARE_SERVICE_TOKEN_SECRET}
+      CF_ACCESS_CLIENT_ID: ${TRADE_EXECUTOR_CF_ACCESS_CLIENT_ID}
+      CF_ACCESS_CLIENT_SECRET: ${TRADE_EXECUTOR_CF_ACCESS_CLIENT_SECRET}
       VAULT_ADDR: ${VAULT_ADDR}
       VAULT_ROLE_ID: ${TRADE_EXECUTOR_ROLE_ID}
       VAULT_SECRET_ID: ${TRADE_EXECUTOR_SECRET_ID}
-    depends_on:
-      - vault
-      - kafka
-      - mongo
+    depends_on: [vault, kafka, mongo]
 
-  # --- 14. Kafka 初期トピック作成（起動後1回のみ） ---
   kafka_init:
     image: bitnami/kafka:latest
     container_name: profinaut-kafka-init
-    depends_on:
-      - kafka
-    entrypoint: [ "/bin/bash", "/init_kafka_topics.sh" ]
+    depends_on: [kafka]
+    entrypoint: ["/bin/bash", "/init_kafka_topics.sh"]
     volumes:
       - ./scripts/init_kafka_topics.sh:/init_kafka_topics.sh
