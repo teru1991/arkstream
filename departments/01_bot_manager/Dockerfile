@@ -1,13 +1,29 @@
-FROM rustlang/rust:nightly-slim as builder
-WORKDIR /usr/src/app
+# ✅ ビルドステージ（Rust + OpenSSL対応）
+FROM rust:1.73-slim-bullseye AS builder
+
+WORKDIR /app
 COPY . .
-RUN apt-get update && apt-get install -y pkg-config libssl-dev && \
+
+# ビルドに必要な依存をインストール
+RUN apt-get update && \
+    apt-get install -y pkg-config libssl-dev build-essential ca-certificates && \
     cargo build --release
 
-FROM debian:bullseye-slim
-RUN apt-get update && apt-get install -y libssl1.1 ca-certificates && rm -rf /var/lib/apt/lists/*
+# ✅ 実行ステージ（GLIBC対応 + 安全な最小構成）
+FROM debian:bookworm-slim
+
+# 最新GLIBC + OpenSSL 3対応
+RUN apt-get update && \
+    apt-get install -y libssl3 ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
-COPY --from=builder /usr/src/app/target/release/bot_manager .
+COPY --from=builder /app/target/release/bot_manager .
+
+# 推奨: ユーザー追加（セキュリティ向上）
+RUN useradd -m botuser
+USER botuser
+
 ENV RUST_LOG=info
 EXPOSE 8080
-CMD ["./bot_manager"]
+ENTRYPOINT ["./bot_manager"]

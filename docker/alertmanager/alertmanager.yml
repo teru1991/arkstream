@@ -11,18 +11,17 @@ route:
   routes:
     - receiver: 'critical-discord'
       matchers:
-        severity = "critical"
+        - severity = "critical"
 
     - receiver: 'vault-discord'
       matchers:
-        alertname = "VaultSecretExpiry"
+        - alertname = "VaultSecretExpiry"
 
     - receiver: 'system-discord'
       matchers:
-        job = "system_monitor"
+        - job = "system_monitor"
 
 receivers:
-
   - name: 'default-discord'
     webhook_configs:
       - url: 'https://webhook.profinaut.studiokeke.com/webhook/system-status'

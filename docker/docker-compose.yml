@@ -81,6 +81,9 @@ services:
     container_name: profinaut-prometheus
     ports:
       - "9090:9090"
+    environment:
+      CLOUDFLARE_SERVICE_TOKEN_ID: ${CLOUDFLARE_SERVICE_TOKEN_ID}
+      CLOUDFLARE_SERVICE_TOKEN_SECRET: ${CLOUDFLARE_SERVICE_TOKEN_SECRET}
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
     depends_on:
@@ -92,6 +95,9 @@ services:
     container_name: profinaut-grafana
     ports:
       - "3001:3000"
+    environment:
+      CLOUDFLARE_SERVICE_TOKEN_ID: ${CLOUDFLARE_SERVICE_TOKEN_ID}
+      CLOUDFLARE_SERVICE_TOKEN_SECRET: ${CLOUDFLARE_SERVICE_TOKEN_SECRET}
     depends_on:
       - prometheus
       - vault
@@ -105,21 +111,30 @@ services:
     ports:
       - "3100:3100"
     volumes:
-      - ./prometheus/loki-config.yml:/etc/loki/loki-config.yml
+      - ./prometheus/loki-config.yml:/etc/loki/loki-config.yml:ro
+      - ./storage/loki/index:/loki/index
+      - ./storage/loki/chunks:/loki/chunks
+      - ./storage/loki/boltdb-cache:/loki/boltdb-cache
+      - ./storage/loki/rules:/loki/rules
     command: -config.file=/etc/loki/loki-config.yml
     depends_on:
       - vault
+    restart: unless-stopped
+
 
   promtail:
     image: grafana/promtail:2.9.0
     container_name: profinaut-promtail
     volumes:
-      - /var/log:/var/log
-      - ./prometheus/promtail-config.yml:/etc/promtail/promtail-config.yml
+      - /var/log:/var/log                    # OSログ
+      - ./storage/logs:/app/logs            # Botログやトレードログ（例）
+      - ./vault/log:/vault/logs             # Vaultログ
+      - ./kafka/log:/kafka/logs             # Kafkaログ
+      - ./prometheus/promtail-config.yml:/etc/promtail/promtail-config.yml:ro
     command: -config.file=/etc/promtail/promtail-config.yml
     depends_on:
       - vault
-
+      - loki
   # --- 8. Alertmanager（通知） ---
   alertmanager:
     image: prom/alertmanager
@@ -155,12 +170,15 @@ services:
     depends_on:
       - vault
 
+
   # --- 11. 部門① Bot Manager（Rust/Actix） ---
   bot_manager:
     build:
       context: ../departments/01_bot_manager
     container_name: profinaut-bot-manager
     environment:
+      CLOUDFLARE_SERVICE_TOKEN_ID: ${CLOUDFLARE_SERVICE_TOKEN_ID}
+      CLOUDFLARE_SERVICE_TOKEN_SECRET: ${CLOUDFLARE_SERVICE_TOKEN_SECRET}
       RUST_LOG: info
       VAULT_ADDR: ${VAULT_ADDR}
       VAULT_ROLE_ID: ${BOT_MANAGER_ROLE_ID}
@@ -176,6 +194,8 @@ services:
       context: ../departments/02_signal_generator
     container_name: profinaut-signal-engine
     environment:
+      CLOUDFLARE_SERVICE_TOKEN_ID: ${CLOUDFLARE_SERVICE_TOKEN_ID}
+      CLOUDFLARE_SERVICE_TOKEN_SECRET: ${CLOUDFLARE_SERVICE_TOKEN_SECRET}
       VAULT_ADDR: ${VAULT_ADDR}
       VAULT_ROLE_ID: ${SIGNAL_ENGINE_ROLE_ID}
       VAULT_SECRET_ID: ${SIGNAL_ENGINE_SECRET_ID}
@@ -190,6 +210,8 @@ services:
       context: ../departments/05_trade_executor
     container_name: profinaut-trade-executor
     environment:
+      CLOUDFLARE_SERVICE_TOKEN_ID: ${CLOUDFLARE_SERVICE_TOKEN_ID}
+      CLOUDFLARE_SERVICE_TOKEN_SECRET: ${CLOUDFLARE_SERVICE_TOKEN_SECRET}
       VAULT_ADDR: ${VAULT_ADDR}
       VAULT_ROLE_ID: ${TRADE_EXECUTOR_ROLE_ID}
       VAULT_SECRET_ID: ${TRADE_EXECUTOR_SECRET_ID}
@@ -204,8 +226,6 @@ services:
     container_name: profinaut-kafka-init
     depends_on:
       - kafka
-    entrypoint: ["/bin/bash", "-c"]
-    command: >
-      "sleep 10 && /init_kafka_topics.sh"
+    entrypoint: [ "/bin/bash", "/init_kafka_topics.sh" ]
     volumes:
       - ./scripts/init_kafka_topics.sh:/init_kafka_topics.sh
