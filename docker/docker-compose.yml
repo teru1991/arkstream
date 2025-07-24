@@ -9,6 +9,9 @@ services:
       - "8200:8200"  # Vaultポートを公開
     environment:
       VAULT_ADDR: "https://vault.profinaut.studiokeke.com:8200"
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_REGION: ${AWS_REGION}
     cap_add:
       - IPC_LOCK  # Windows環境で必要な設定
     volumes:
@@ -18,11 +21,11 @@ services:
       - ./vault/log:/vault/log  # ログ用のボリューム
     command: vault server -config=/vault/config/vault.hcl  # 設定ファイルを指定
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8200/v1/sys/health"]
+      test: [ "CMD-SHELL", "curl -s -o /dev/null -w '%{http_code}' https://localhost:8200/v1/sys/health --insecure | grep -Eq '200|429|501|503'" ]
       interval: 30s
+      timeout: 10s
       retries: 5
       start_period: 10s
-      timeout: 10s
 
   # --- 2. MongoDB（構造化DB） ---
   mongo:
