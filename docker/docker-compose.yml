@@ -6,26 +6,22 @@ services:
     image: hashicorp/vault:latest
     container_name: profinaut-vault
     ports:
-      - "8200:8200"  # Vaultポートを公開
+      - "8200:8200"
     environment:
       VAULT_ADDR: "https://vault.profinaut.studiokeke.com:8200"
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
       AWS_REGION: ${AWS_REGION}
     cap_add:
-      - IPC_LOCK  # Windows環境で必要な設定
+      - IPC_LOCK
     volumes:
-      - ./vault/config:/vault/config  # vault.hclのパス
-      - ./vault/cert:/vault/cert    # 証明書のパス
-      - ./storage/vault/data:/vault/data  # 永続化用ストレージ
-      - ./vault/log:/vault/log  # ログ用のボリューム
-    command: vault server -config=/vault/config/vault.hcl  # 設定ファイルを指定
-    healthcheck:
-      test: [ "CMD-SHELL", "curl -s -o /dev/null -w '%{http_code}' https://localhost:8200/v1/sys/health --insecure | grep -Eq '200|429|501|503'" ]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 10s
+      - ./vault/config:/vault/config
+      - ./vault/cert:/vault/cert
+      - ./storage/vault/data:/vault/data
+      - ./vault/log:/vault/log
+    command: vault server -config=/vault/config/vault.hcl
+
+
 
   # --- 2. MongoDB（構造化DB） ---
   mongo:
@@ -36,8 +32,7 @@ services:
     volumes:
       - ./storage/mongo/data:/data/db
     depends_on:
-      vault:
-        condition: service_healthy
+      - vault
 
   # --- 3. PostgreSQL（正規化DB） ---
   postgres:
@@ -52,8 +47,7 @@ services:
     volumes:
       - ./storage/postgres/data:/var/lib/postgresql/data
     depends_on:
-      vault:
-        condition: service_healthy
+      - vault
 
   # --- 4. Kafka + Zookeeper（ストリーム） ---
   zookeeper:
@@ -63,8 +57,7 @@ services:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
     depends_on:
-      vault:
-        condition: service_healthy
+      - vault
 
   kafka:
     image: confluentinc/cp-kafka:7.4.0
@@ -91,8 +84,7 @@ services:
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
     depends_on:
-      vault:
-        condition: service_healthy
+      - vault
 
   # --- 6. Grafana ---
   grafana:
@@ -116,8 +108,7 @@ services:
       - ./prometheus/loki-config.yml:/etc/loki/loki-config.yml
     command: -config.file=/etc/loki/loki-config.yml
     depends_on:
-      vault:
-        condition: service_healthy
+      - vault
 
   promtail:
     image: grafana/promtail:2.9.0
@@ -127,8 +118,7 @@ services:
       - ./prometheus/promtail-config.yml:/etc/promtail/promtail-config.yml
     command: -config.file=/etc/promtail/promtail-config.yml
     depends_on:
-      vault:
-        condition: service_healthy
+      - vault
 
   # --- 8. Alertmanager（通知） ---
   alertmanager:
@@ -140,8 +130,7 @@ services:
       - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml
     command: --config.file=/etc/alertmanager/alertmanager.yml
     depends_on:
-      vault:
-        condition: service_healthy
+      - vault
 
   # --- 9. Frontend（React + Vite + PWA） ---
   frontend:
@@ -154,8 +143,7 @@ services:
       NODE_ENV: production
     restart: unless-stopped
     depends_on:
-      vault:
-        condition: service_healthy
+      - vault
 
   # --- 10. Cloudflare Tunnel（Zero Trust外部UI） ---
   cloudflared:
@@ -165,8 +153,7 @@ services:
     environment:
       TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
     depends_on:
-      vault:
-        condition: service_healthy
+      - vault
 
   # --- 11. 部門① Bot Manager（Rust/Actix） ---
   bot_manager:
